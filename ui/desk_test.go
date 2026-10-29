@@ -537,6 +537,31 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestDisconnectedEmptyListPrompt(t *testing.T) {
+	model := &Model{Status: "未连接", Hosts: nil, Selected: -1}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	prompt, ok := labelByValue(snapshot, "还没有主机")
+	if !ok || prompt.Bounds.Width <= 0 || prompt.Bounds.Height <= 0 {
+		t.Fatal("未连接时没有完整显示还没有主机")
+	}
+	placeholder, ok := labelByValue(snapshot, "等待连接")
+	if ok && overlaps(prompt.Bounds, placeholder.Bounds) {
+		t.Fatal("空列表提示与终端占位说明重叠")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("未连接的空列表提示显示了口令")
+		}
+	}
+}
+
 func TestEmptyHostListShowsPlaceholder(t *testing.T) {
 	model := &Model{Hosts: nil, Selected: -1}
 	var canvas vivaui.Canvas
