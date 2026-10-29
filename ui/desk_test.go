@@ -537,6 +537,36 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestDisconnectedTerminalCellsAreComplete(t *testing.T) {
+	grid := term.New(20, 2)
+	if _, err := grid.Write([]byte("ab")); err != nil {
+		t.Fatalf("写入网格失败: %v", err)
+	}
+	model := &Model{Status: "未连接", Grid: grid}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	x, y := grid.Cursor()
+	want := withCursor(grid.Row(y), x)
+	snapshot := driver.Snapshot()
+	label, ok := labelByValue(snapshot, want)
+	if !ok || label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+		t.Fatalf("未连接时终端单元格不完整: %q", want)
+	}
+	if !strings.Contains(label.Value, "a") || !strings.Contains(label.Value, "b") {
+		t.Fatalf("未连接时单元格被截断: %q", label.Value)
+	}
+	for _, item := range snapshot.Labels {
+		if strings.Contains(item.Value, "secret-password") {
+			t.Fatal("未连接的终端单元格显示了口令")
+		}
+	}
+}
+
 func TestDisconnectedTerminalAreaIsComplete(t *testing.T) {
 	model := &Model{
 		Status: "未连接",
