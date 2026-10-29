@@ -163,6 +163,53 @@ func TestConnectingStatusIsComplete(t *testing.T) {
 	}
 }
 
+func TestDisconnectedHostRowAndColumns(t *testing.T) {
+	model := &Model{
+		Status: "未连接",
+		Hosts: []store.Host{{
+			User:    "alice",
+			Address: "example.com",
+			Port:    22,
+		}},
+		Selected: 0,
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	fields := []string{"alice", "example.com", "22"}
+	var row float32 = -1
+	for _, value := range fields {
+		label, ok := labelByValue(snapshot, value)
+		if !ok || label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatalf("未连接时字段 %s 不完整", value)
+		}
+		if row < 0 {
+			row = label.Bounds.Y
+			continue
+		}
+		if abs(label.Bounds.Y-row) > 1 {
+			t.Fatalf("字段 %s 不在同一主机行", value)
+		}
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("未连接的主机行显示了口令")
+		}
+	}
+}
+
+func abs(v float32) float32 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
 func TestDisconnectedHostListIsComplete(t *testing.T) {
 	model := &Model{
 		Status: "未连接",
