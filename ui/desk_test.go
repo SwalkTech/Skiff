@@ -163,6 +163,61 @@ func TestConnectingStatusIsComplete(t *testing.T) {
 	}
 }
 
+func TestDisconnectedHoverRowIsDistinct(t *testing.T) {
+	model := &Model{
+		Status: "未连接",
+		Hosts: []store.Host{{
+			User:    "alice",
+			Address: "example.com",
+			Port:    22,
+		}},
+		Selected: 0,
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	var hit *vivaui.Hit
+	for i := range snapshot.Hits {
+		if snapshot.Hits[i].Label == "example.com" {
+			hit = &snapshot.Hits[i]
+			break
+		}
+	}
+	if hit == nil || hit.Bounds.Width <= 0 || hit.Bounds.Height <= 0 {
+		t.Fatal("未连接时没有可悬停的主机行")
+	}
+	x := hit.Bounds.X + hit.Bounds.Width/2
+	y := hit.Bounds.Y + hit.Bounds.Height/2
+	if err := driver.Move(x, y); err != nil {
+		t.Fatalf("悬停主机行失败: %v", err)
+	}
+	hovered := driver.Snapshot()
+	if hovered.Hovered != hit.ID {
+		t.Fatal("悬停没有落在主机行上")
+	}
+	user, ok := labelByValue(hovered, "alice")
+	if !ok || user.Bounds.Width <= 0 {
+		t.Fatal("悬停后用户列不完整")
+	}
+	address, ok := labelByValue(hovered, "example.com")
+	if !ok || address.Bounds.Width <= 0 {
+		t.Fatal("悬停后地址列不完整")
+	}
+	if overlaps(user.Bounds, address.Bounds) {
+		t.Fatal("悬停后主机字段重叠")
+	}
+	for _, label := range hovered.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("悬停行显示了口令")
+		}
+	}
+}
+
 func TestDisconnectedSelectedRowIsDistinct(t *testing.T) {
 	model := &Model{
 		Status: "未连接",

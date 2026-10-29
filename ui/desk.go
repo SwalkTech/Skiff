@@ -57,13 +57,14 @@ func NewConfig(m *Model) app.Config {
 				}
 				for i, host := range m.Hosts {
 					selected := i == m.Selected
-					frame.Row().Gap(16).Children(func() {
+					row := frame.Row().Gap(16).HoverBackground(theme.Muted)
+					row.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
+					row.Children(func() {
 						if selected {
 							frame.Text("当前").Bold()
 						}
 						user := frame.Text(host.User)
 						address := frame.Text(host.Address).MaxWidth(120).Ellipsis()
-						address.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
 						port := frame.Text(strconv.Itoa(host.Port))
 						if selected {
 							user.Bold()
