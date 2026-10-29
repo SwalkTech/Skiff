@@ -66,6 +66,33 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 	}
 }
 
+func TestDisconnectedStatusIsComplete(t *testing.T) {
+	model := &Model{Status: "未连接"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	found := false
+	for _, label := range driver.Snapshot().Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("未连接界面显示了口令")
+		}
+		if label.Value != "未连接" {
+			continue
+		}
+		found = true
+		if label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatal("未连接状态没有可显示的区域")
+		}
+	}
+	if !found {
+		t.Fatal("状态栏没有完整显示未连接")
+	}
+}
+
 func TestGridRowsFollowTerminalHeight(t *testing.T) {
 	grid := term.New(8, 2)
 	model := &Model{Grid: grid}
