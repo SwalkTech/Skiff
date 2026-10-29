@@ -537,6 +537,49 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestDisconnectedFilterResults(t *testing.T) {
+	model := &Model{
+		Status: "未连接",
+		Filter: "bastion",
+		Hosts: []store.Host{
+			{User: "alice", Address: "app.example", Port: 22},
+			{User: "root", Address: "bastion.example", Port: 2222},
+		},
+		Selected: 1,
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	user, ok := labelByValue(snapshot, "root")
+	if !ok || user.Bounds.Width <= 0 || user.Bounds.Height <= 0 {
+		t.Fatal("过滤结果没有完整显示匹配用户")
+	}
+	address, ok := labelByValue(snapshot, "bastion.example")
+	if !ok || address.Bounds.Width <= 0 || address.Bounds.Height <= 0 {
+		t.Fatal("过滤结果没有完整显示匹配地址")
+	}
+	port, ok := labelByValue(snapshot, "2222")
+	if !ok || port.Bounds.Width <= 0 || port.Bounds.Height <= 0 {
+		t.Fatal("过滤结果没有完整显示匹配端口")
+	}
+	if overlaps(user.Bounds, address.Bounds) || overlaps(address.Bounds, port.Bounds) {
+		t.Fatal("过滤结果中的字段重叠")
+	}
+	if hasExactLabel(snapshot, "alice") || hasExactLabel(snapshot, "app.example") {
+		t.Fatal("过滤结果包含未匹配的主机")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("过滤结果界面显示了口令")
+		}
+	}
+}
+
 func TestDisconnectedEmptyListPrompt(t *testing.T) {
 	model := &Model{Status: "未连接", Hosts: nil, Selected: -1}
 	var canvas vivaui.Canvas

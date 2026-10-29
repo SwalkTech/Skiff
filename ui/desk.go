@@ -33,7 +33,9 @@ type Model struct {
 	Grid     *term.Grid
 	// Fingerprint 是等待确认的主机密钥指纹。为空表示没有确认请求。
 	Fingerprint string
-	view        flex.View
+	// Filter 按用户或地址筛选主机。为空表示显示全部。
+	Filter string
+	view   flex.View
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -52,10 +54,14 @@ func NewConfig(m *Model) app.Config {
 		frame.Column().Fill().Pad(16).Gap(8).Children(func() {
 			frame.Text("主机").Bold()
 			frame.ScrollArea(hostListID).MaxHeight(120).Children(func() {
+				visible := visibleHosts(m)
 				if len(m.Hosts) == 0 {
 					frame.Text("还没有主机").Muted()
+				} else if len(visible) == 0 {
+					frame.Text("没有匹配的主机").Muted()
 				}
-				for i, host := range m.Hosts {
+				for _, item := range visible {
+					i, host := item.index, item.host
 					selected := i == m.Selected
 					row := frame.Row().Gap(16).HoverBackground(theme.Muted)
 					row.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
@@ -128,6 +134,26 @@ func (m *Model) Fail(reason string) {
 func Run(m *Model) error {
 	var canvas vivaui.Canvas
 	return app.RunCanvas(NewConfig(m), &canvas)
+}
+
+type indexedHost struct {
+	index int
+	host  store.Host
+}
+
+func visibleHosts(m *Model) []indexedHost {
+	if m == nil {
+		return nil
+	}
+	filter := strings.ToLower(strings.TrimSpace(m.Filter))
+	out := make([]indexedHost, 0, len(m.Hosts))
+	for i, host := range m.Hosts {
+		if filter != "" && !strings.Contains(strings.ToLower(host.User), filter) && !strings.Contains(strings.ToLower(host.Address), filter) {
+			continue
+		}
+		out = append(out, indexedHost{index: i, host: host})
+	}
+	return out
 }
 
 func screenLines(screen string) []string {
