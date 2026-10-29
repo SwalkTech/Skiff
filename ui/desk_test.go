@@ -537,6 +537,45 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestDisconnectedNewHostFormIsComplete(t *testing.T) {
+	model := &Model{Status: "未连接", ShowNewHost: true}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	fields := []string{"地址", "用户", "端口"}
+	var row float32 = -1
+	var boxes []vivaui.Rect
+	for _, value := range fields {
+		label, ok := labelByValue(snapshot, value)
+		if !ok || label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatalf("未连接时新增表单缺少完整字段 %s", value)
+		}
+		if row < 0 {
+			row = label.Bounds.Y
+		} else if abs(label.Bounds.Y-row) > 1 {
+			t.Fatalf("字段 %s 不在新增表单同一行", value)
+		}
+		boxes = append(boxes, label.Bounds)
+	}
+	for i := 0; i < len(boxes); i++ {
+		for j := i + 1; j < len(boxes); j++ {
+			if overlaps(boxes[i], boxes[j]) {
+				t.Fatal("新增主机表单字段重叠")
+			}
+		}
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") || label.Value == "口令" {
+			t.Fatal("未连接的新增主机表单显示了口令")
+		}
+	}
+}
+
 func TestDisconnectedDividerSeparatesRegions(t *testing.T) {
 	model := &Model{
 		Status: "未连接",

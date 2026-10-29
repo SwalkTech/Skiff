@@ -40,8 +40,10 @@ type Model struct {
 	// Selection 是终端选区说明。为空表示没有选区。
 	Selection string
 	// Tab 是当前会话标签。为空表示没有会话。
-	Tab  string
-	view flex.View
+	Tab string
+	// ShowNewHost 为真时显示新增主机表单。
+	ShowNewHost bool
+	view        flex.View
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -67,6 +69,13 @@ func NewConfig(m *Model) app.Config {
 				})
 			}
 			frame.Text("主机").Bold()
+			if form := newHostFormText(m); form != "" {
+				frame.Row().Gap(12).Children(func() {
+					for _, field := range strings.Split(form, "|") {
+						frame.Text(field)
+					}
+				})
+			}
 			frame.ScrollArea(hostListID).MaxHeight(120).Children(func() {
 				visible := visibleHosts(m)
 				if len(m.Hosts) == 0 {
@@ -232,6 +241,13 @@ func withCursor(line string, x int) string {
 	marked = append(marked, '▍')
 	marked = append(marked, chars[x:]...)
 	return string(marked)
+}
+
+func newHostFormText(m *Model) string {
+	if m == nil || !m.ShowNewHost || statusText(m.Status) != "未连接" {
+		return ""
+	}
+	return "地址|用户|端口"
 }
 
 func tabCloseText(m *Model) string {
