@@ -17,8 +17,9 @@ const (
 )
 
 var (
-	tree = vivaui.Tree{}
-	page = tree.Feature("desk")
+	tree       = vivaui.Tree{}
+	page       = tree.Feature("desk")
+	hostListID = tree.ID(page, "hosts")
 )
 
 // Model 是主窗口要画的内容。它不保存连接，也不发起 SSH 握手。
@@ -40,7 +41,7 @@ type Model struct {
 // NewConfig 描述主机列表和一块静态等宽文本。测试可以驱动同一份配置而不打开窗口。
 func NewConfig(m *Model) app.Config {
 	theme := vivaui.LightTheme()
-	config := app.Config{Tree: &tree, Title: "Skiff", Width: 800, Height: 480}
+	config := app.Config{Tree: &tree, Title: "Skiff", Width: 800, Height: 480, OnScroll: m.view.Wheel}
 	config.Paint = func(canvas *vivaui.Canvas, size vivaui.Size) {
 		bounds := vivaui.Rect{Width: size.Width, Height: size.Height}
 		canvas.Fill(bounds, theme.Background)
@@ -48,25 +49,27 @@ func NewConfig(m *Model) app.Config {
 		var terminal flex.Box
 		frame.Column().Fill().Pad(16).Gap(8).Children(func() {
 			frame.Text("主机").Bold()
-			if len(m.Hosts) == 0 {
-				frame.Text("还没有主机").Muted()
-			}
-			for i, host := range m.Hosts {
-				selected := i == m.Selected
-				frame.Row().Gap(16).Children(func() {
-					if selected {
-						frame.Text("当前").Bold()
-					}
-					user := frame.Text(host.User)
-					address := frame.Text(host.Address)
-					port := frame.Text(strconv.Itoa(host.Port))
-					if selected {
-						user.Bold()
-						address.Bold()
-						port.Bold()
-					}
-				})
-			}
+			frame.ScrollArea(hostListID).MaxHeight(120).Children(func() {
+				if len(m.Hosts) == 0 {
+					frame.Text("还没有主机").Muted()
+				}
+				for i, host := range m.Hosts {
+					selected := i == m.Selected
+					frame.Row().Gap(16).Children(func() {
+						if selected {
+							frame.Text("当前").Bold()
+						}
+						user := frame.Text(host.User)
+						address := frame.Text(host.Address)
+						port := frame.Text(strconv.Itoa(host.Port))
+						if selected {
+							user.Bold()
+							address.Bold()
+							port.Bold()
+						}
+					})
+				}
+			})
 			frame.Text("终端").Bold()
 			terminal = frame.Column().FillHeight().MinHeight(terminalLineHeight)
 			lines := terminalLines(m)

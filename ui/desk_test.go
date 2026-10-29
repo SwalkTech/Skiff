@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -159,6 +160,35 @@ func TestConnectingStatusIsComplete(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("状态栏没有完整显示正在连接")
+	}
+}
+
+func TestHostListScrollsToLastItem(t *testing.T) {
+	hosts := make([]store.Host, 30)
+	for i := range hosts {
+		hosts[i] = store.Host{Address: fmt.Sprintf("h%02d.example", i), User: "u", Port: 22}
+	}
+	model := &Model{Hosts: hosts, Selected: 0}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	state := model.view.ScrollState(hostListID)
+	if state.Content <= state.Viewport {
+		t.Fatalf("主机内容 %v 没有超过可见高度 %v", state.Content, state.Viewport)
+	}
+	state.ScrollToEnd()
+	if err := driver.Resize(800, 480); err != nil {
+		t.Fatalf("滚到末尾后刷新失败: %v", err)
+	}
+	if !model.view.ScrollState(hostListID).AtEnd() {
+		t.Fatal("主机列表没有滚到末尾")
+	}
+	if !hasExactLabel(driver.Snapshot(), "h29.example") {
+		t.Fatal("滚到末尾后看不到最后一台主机")
 	}
 }
 
