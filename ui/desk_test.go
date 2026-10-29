@@ -159,6 +159,31 @@ func TestConnectingStatusIsComplete(t *testing.T) {
 	}
 }
 
+func TestEmptyHostListShowsPlaceholder(t *testing.T) {
+	model := &Model{Hosts: nil, Selected: -1}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	const want = "还没有主机"
+	found := false
+	for _, label := range driver.Snapshot().Labels {
+		if label.Value != want {
+			continue
+		}
+		found = true
+		if label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatal("空主机列表没有可显示的区域")
+		}
+	}
+	if !found {
+		t.Fatal("空主机列表没有显示还没有主机")
+	}
+}
+
 func TestDisconnectedErrorIsComplete(t *testing.T) {
 	model := &Model{Status: "未连接"}
 	var canvas vivaui.Canvas
