@@ -37,7 +37,9 @@ type Model struct {
 	Filter string
 	// Scrollback 是回看位置。为空表示没有可回看的历史。
 	Scrollback string
-	view       flex.View
+	// Selection 是终端选区说明。为空表示没有选区。
+	Selection string
+	view      flex.View
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -94,6 +96,9 @@ func NewConfig(m *Model) app.Config {
 			frame.Text(statusText(m.Status)).Muted()
 			if place := scrollbackText(m); place != "" {
 				frame.Text(place).Muted()
+			}
+			if selection := selectionText(m); selection != "" {
+				frame.Text(selection).Muted()
 			}
 			if prompt := fingerprintPrompt(m); prompt != "" {
 				frame.Text(prompt)
@@ -216,6 +221,16 @@ func withCursor(line string, x int) string {
 	marked = append(marked, '▍')
 	marked = append(marked, chars[x:]...)
 	return string(marked)
+}
+
+func selectionText(m *Model) string {
+	if m == nil || statusText(m.Status) != "未连接" {
+		return ""
+	}
+	if strings.TrimSpace(m.Selection) == "" {
+		return "无选区"
+	}
+	return strings.TrimSpace(m.Selection)
 }
 
 func scrollbackText(m *Model) string {
