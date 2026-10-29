@@ -43,7 +43,9 @@ type Model struct {
 	Tab string
 	// ShowNewHost 为真时显示新增主机表单。
 	ShowNewHost bool
-	view        flex.View
+	// EditHost 为真时显示正在编辑的主机。下标由 Selected 指定。
+	EditHost bool
+	view     flex.View
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -72,6 +74,13 @@ func NewConfig(m *Model) app.Config {
 			if form := newHostFormText(m); form != "" {
 				frame.Row().Gap(12).Children(func() {
 					for _, field := range strings.Split(form, "|") {
+						frame.Text(field)
+					}
+				})
+			}
+			if fields := editHostFields(m); len(fields) > 0 {
+				frame.Row().Gap(12).Children(func() {
+					for _, field := range fields {
 						frame.Text(field)
 					}
 				})
@@ -248,6 +257,17 @@ func newHostFormText(m *Model) string {
 		return ""
 	}
 	return "地址|用户|端口"
+}
+
+func editHostFields(m *Model) []string {
+	if m == nil || !m.EditHost || statusText(m.Status) != "未连接" {
+		return nil
+	}
+	if m.Selected < 0 || m.Selected >= len(m.Hosts) {
+		return nil
+	}
+	host := m.Hosts[m.Selected]
+	return []string{host.Address, host.User, strconv.Itoa(host.Port)}
 }
 
 func tabCloseText(m *Model) string {
