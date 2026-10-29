@@ -99,6 +99,34 @@ func TestGridRowsFollowTerminalHeight(t *testing.T) {
 	}
 }
 
+func TestBackspaceRemovesErasedCharacter(t *testing.T) {
+	grid := term.New(20, 2)
+	if _, err := grid.Write([]byte("ab")); err != nil {
+		t.Fatalf("写入网格失败: %v", err)
+	}
+	model := &Model{Grid: grid}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	if _, err := grid.Write([]byte("\b")); err != nil {
+		t.Fatalf("退格失败: %v", err)
+	}
+	if err := driver.Resize(800, 480); err != nil {
+		t.Fatalf("退格后刷新失败: %v", err)
+	}
+	snapshot := driver.Snapshot()
+	if hasLabel(snapshot, "b") {
+		t.Fatal("退格后界面仍显示已被擦除的字符")
+	}
+	if !hasLabel(snapshot, "a") {
+		t.Fatal("退格后界面没有保留剩余字符")
+	}
+}
+
 func TestClearScreenRemovesOldText(t *testing.T) {
 	grid := term.New(20, 3)
 	if _, err := grid.Write([]byte("hello")); err != nil {
