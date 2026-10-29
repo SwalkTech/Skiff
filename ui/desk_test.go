@@ -163,6 +163,39 @@ func TestConnectingStatusIsComplete(t *testing.T) {
 	}
 }
 
+func TestTrailingEmptyCellsAreNotDrawn(t *testing.T) {
+	grid := term.New(40, 2)
+	if _, err := grid.Write([]byte("a")); err != nil {
+		t.Fatalf("写入网格失败: %v", err)
+	}
+	model := &Model{Grid: grid}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	found := false
+	for _, label := range driver.Snapshot().Labels {
+		if !strings.Contains(label.Value, "a") || !strings.Contains(label.Value, "▍") {
+			continue
+		}
+		found = true
+		for _, symbol := range []string{"·", "□", "▢", "."} {
+			if strings.Contains(label.Value, symbol) {
+				t.Fatalf("行尾空单元格被画成 %s: %q", symbol, label.Value)
+			}
+		}
+		if len([]rune(label.Value)) > 4 {
+			t.Fatalf("行尾空单元格被画出来了: %q", label.Value)
+		}
+	}
+	if !found {
+		t.Fatal("没有看到只包含文字和光标的短行")
+	}
+}
+
 func TestLongAddressTruncatesButStaysAvailable(t *testing.T) {
 	const full = "very-long-host-name.internal.example.test"
 	model := &Model{
