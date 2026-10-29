@@ -28,8 +28,11 @@ func TestDeskShowsHostAndMonoText(t *testing.T) {
 	defer driver.Close()
 
 	snapshot := driver.Snapshot()
-	if !hasLabel(snapshot, "alice@example.com:22") {
-		t.Fatal("主机列表没有显示已保存的主机")
+	if !hasExactLabel(snapshot, "alice") || !hasExactLabel(snapshot, "example.com") || !hasExactLabel(snapshot, "22") {
+		t.Fatal("主机列表没有把用户、地址和端口分成三列")
+	}
+	if hasLabel(snapshot, "alice@example.com:22") {
+		t.Fatal("主机字段仍挤在同一段文字里")
 	}
 	if !hasLabel(snapshot, "Skiff") || !hasLabel(snapshot, "等待连接") {
 		t.Fatal("等宽文本区没有显示静态内容")
@@ -58,8 +61,8 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 		t.Fatalf("创建界面驱动失败: %v", err)
 	}
 	defer driver.Close()
-	if !hasLabel(driver.Snapshot(), "root@bastion.example:2222") {
-		t.Fatal("界面没有显示清单中的主机")
+	if !hasExactLabel(driver.Snapshot(), "root") || !hasExactLabel(driver.Snapshot(), "bastion.example") || !hasExactLabel(driver.Snapshot(), "2222") {
+		t.Fatal("界面没有按三列显示清单中的主机")
 	}
 	if !hasLabel(driver.Snapshot(), "未连接") {
 		t.Fatal("没有会话时状态栏应显示未连接")
@@ -479,11 +482,22 @@ func TestSelectedHostIsDistinct(t *testing.T) {
 	defer driver.Close()
 
 	snapshot := driver.Snapshot()
-	if !hasLabel(snapshot, "当前 bob@b.example:22") {
-		t.Fatal("选中主机没有当前标记")
+	if !hasExactLabel(snapshot, "当前") || !hasExactLabel(snapshot, "bob") || !hasExactLabel(snapshot, "b.example") {
+		t.Fatal("选中主机没有分成当前标记和独立字段")
 	}
-	if hasLabel(snapshot, "当前 ann@a.example:22") {
-		t.Fatal("未选中主机也被标成当前")
+	if !hasExactLabel(snapshot, "ann") || !hasExactLabel(snapshot, "a.example") {
+		t.Fatal("未选中主机没有显示独立字段")
+	}
+	bob, ok := labelByValue(snapshot, "bob")
+	if !ok {
+		t.Fatal("没有 bob 字段")
+	}
+	ann, ok := labelByValue(snapshot, "ann")
+	if !ok {
+		t.Fatal("没有 ann 字段")
+	}
+	if bob.Weight <= ann.Weight {
+		t.Fatal("选中主机没有比未选中主机更强调")
 	}
 }
 
@@ -507,6 +521,20 @@ func TestFailureStaysOnStatusBar(t *testing.T) {
 	if !hasLabel(driver.Snapshot(), "认证失败") {
 		t.Fatal("失败后窗口未能继续显示状态")
 	}
+}
+
+func hasExactLabel(snapshot app.Snapshot, want string) bool {
+	_, ok := labelByValue(snapshot, want)
+	return ok
+}
+
+func labelByValue(snapshot app.Snapshot, want string) (app.Label, bool) {
+	for _, label := range snapshot.Labels {
+		if label.Value == want {
+			return label, true
+		}
+	}
+	return app.Label{}, false
 }
 
 func hasLabel(snapshot app.Snapshot, want string) bool {

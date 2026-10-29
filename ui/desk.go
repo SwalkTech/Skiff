@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/SwalkTech/Skiff/store"
@@ -52,11 +52,20 @@ func NewConfig(m *Model) app.Config {
 				frame.Text("还没有主机").Muted()
 			}
 			for i, host := range m.Hosts {
-				label := hostLabel(host, i == m.Selected)
-				text := frame.Text(label)
-				if i == m.Selected {
-					text.Bold()
-				}
+				selected := i == m.Selected
+				frame.Row().Gap(16).Children(func() {
+					if selected {
+						frame.Text("当前").Bold()
+					}
+					user := frame.Text(host.User)
+					address := frame.Text(host.Address)
+					port := frame.Text(strconv.Itoa(host.Port))
+					if selected {
+						user.Bold()
+						address.Bold()
+						port.Bold()
+					}
+				})
 			}
 			frame.Text("终端").Bold()
 			terminal = frame.Column().FillHeight().MinHeight(terminalLineHeight)
@@ -111,14 +120,6 @@ func (m *Model) Fail(reason string) {
 func Run(m *Model) error {
 	var canvas vivaui.Canvas
 	return app.RunCanvas(NewConfig(m), &canvas)
-}
-
-func hostLabel(host store.Host, selected bool) string {
-	label := fmt.Sprintf("%s@%s:%d", host.User, host.Address, host.Port)
-	if selected {
-		return "当前 " + label
-	}
-	return label
 }
 
 func screenLines(screen string) []string {
