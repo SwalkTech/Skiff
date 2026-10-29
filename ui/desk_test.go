@@ -537,6 +537,46 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestConnectingHostRowAndColumns(t *testing.T) {
+	model := &Model{
+		Status: "正在连接",
+		Hosts: []store.Host{{
+			User:    "alice",
+			Address: "example.com",
+			Port:    22,
+		}},
+		Selected: 0,
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	fields := []string{"alice", "example.com", "22"}
+	var row float32 = -1
+	for _, value := range fields {
+		label, ok := labelByValue(snapshot, value)
+		if !ok || label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatalf("正在连接时字段 %s 不完整", value)
+		}
+		if row < 0 {
+			row = label.Bounds.Y
+			continue
+		}
+		if abs(label.Bounds.Y-row) > 1 {
+			t.Fatalf("字段 %s 不在同一主机行", value)
+		}
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("正在连接的主机行显示了口令")
+		}
+	}
+}
+
 func TestConnectingHostListIsComplete(t *testing.T) {
 	model := &Model{
 		Status: "正在连接",
