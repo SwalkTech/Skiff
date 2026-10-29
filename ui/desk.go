@@ -17,10 +17,12 @@ var (
 
 // Model 是主窗口要画的内容。它不保存连接，也不发起 SSH 握手。
 type Model struct {
-	Hosts  []store.Host
-	Screen string
-	Status string
-	view   flex.View
+	Hosts []store.Host
+	// Selected 是当前主机在 Hosts 中的下标。没有可选主机时为 -1。
+	Selected int
+	Screen   string
+	Status   string
+	view     flex.View
 }
 
 // NewConfig 描述主机列表和一块静态等宽文本。测试可以驱动同一份配置而不打开窗口。
@@ -36,8 +38,12 @@ func NewConfig(m *Model) app.Config {
 				if len(m.Hosts) == 0 {
 					f.Text("还没有主机").Muted()
 				}
-				for _, host := range m.Hosts {
-					f.Text(hostLabel(host))
+				for i, host := range m.Hosts {
+					label := hostLabel(host, i == m.Selected)
+					text := f.Text(label)
+					if i == m.Selected {
+						text.Bold()
+					}
 				}
 				f.Text("终端").Bold()
 				for _, line := range screenLines(m.Screen) {
@@ -58,7 +64,11 @@ func Load(path string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Model{Hosts: hosts, Status: "未连接"}, nil
+	selected := -1
+	if len(hosts) > 0 {
+		selected = 0
+	}
+	return &Model{Hosts: hosts, Selected: selected, Status: "未连接"}, nil
 }
 
 // Fail 把失败原因写到状态栏。窗口保持打开，原因中不应包含口令。
@@ -76,8 +86,12 @@ func Run(m *Model) error {
 	return app.RunCanvas(NewConfig(m), &canvas)
 }
 
-func hostLabel(host store.Host) string {
-	return fmt.Sprintf("%s@%s:%d", host.User, host.Address, host.Port)
+func hostLabel(host store.Host, selected bool) string {
+	label := fmt.Sprintf("%s@%s:%d", host.User, host.Address, host.Port)
+	if selected {
+		return "当前 " + label
+	}
+	return label
 }
 
 func screenLines(screen string) []string {

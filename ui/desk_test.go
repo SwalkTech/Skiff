@@ -65,6 +65,30 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 	}
 }
 
+func TestSelectedHostIsDistinct(t *testing.T) {
+	model := &Model{
+		Hosts: []store.Host{
+			{Address: "a.example", User: "ann", Port: 22},
+			{Address: "b.example", User: "bob", Port: 22},
+		},
+		Selected: 1,
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	if !hasLabel(snapshot, "当前 bob@b.example:22") {
+		t.Fatal("选中主机没有当前标记")
+	}
+	if hasLabel(snapshot, "当前 ann@a.example:22") {
+		t.Fatal("未选中主机也被标成当前")
+	}
+}
+
 func TestFailureStaysOnStatusBar(t *testing.T) {
 	model := &Model{Status: "未连接"}
 	var canvas vivaui.Canvas
