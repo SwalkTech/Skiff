@@ -66,6 +66,36 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 	}
 }
 
+func TestGridRowsFollowTerminalHeight(t *testing.T) {
+	grid := term.New(8, 2)
+	model := &Model{Grid: grid}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	_, tall := model.Grid.Size()
+	if err := driver.Resize(800, 240); err != nil {
+		t.Fatalf("缩小窗口失败: %v", err)
+	}
+	_, shortRows := model.Grid.Size()
+	if shortRows >= tall {
+		t.Fatalf("区域变矮后行数 = %d，原来 %d", shortRows, tall)
+	}
+	if err := driver.Resize(800, 720); err != nil {
+		t.Fatalf("放大窗口失败: %v", err)
+	}
+	cols, grown := model.Grid.Size()
+	if grown <= shortRows {
+		t.Fatalf("区域变高后行数 = %d，较矮时 %d", grown, shortRows)
+	}
+	if cols != 8 {
+		t.Fatalf("调整行数时列数变成了 %d", cols)
+	}
+}
+
 func TestGridTextAppearsInTerminal(t *testing.T) {
 	grid := term.New(20, 3)
 	if _, err := grid.Write([]byte("hello\r\n世界")); err != nil {

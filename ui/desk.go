@@ -11,6 +11,8 @@ import (
 	vivaui "github.com/vivaui/viva/ui"
 )
 
+const terminalLineHeight float32 = 20
+
 var (
 	tree = vivaui.Tree{}
 	page = tree.Feature("desk")
@@ -34,27 +36,31 @@ func NewConfig(m *Model) app.Config {
 	config.Paint = func(canvas *vivaui.Canvas, size vivaui.Size) {
 		bounds := vivaui.Rect{Width: size.Width, Height: size.Height}
 		canvas.Fill(bounds, theme.Background)
-		m.view.Draw(canvas, theme, bounds, func(f *flex.Frame) {
-			f.Column().Fill().Pad(16).Gap(8).Children(func() {
-				f.Text("主机").Bold()
-				if len(m.Hosts) == 0 {
-					f.Text("还没有主机").Muted()
+		frame := m.view.Begin(canvas, theme, bounds)
+		var terminal flex.Box
+		frame.Column().Fill().Pad(16).Gap(8).Children(func() {
+			frame.Text("主机").Bold()
+			if len(m.Hosts) == 0 {
+				frame.Text("还没有主机").Muted()
+			}
+			for i, host := range m.Hosts {
+				label := hostLabel(host, i == m.Selected)
+				text := frame.Text(label)
+				if i == m.Selected {
+					text.Bold()
 				}
-				for i, host := range m.Hosts {
-					label := hostLabel(host, i == m.Selected)
-					text := f.Text(label)
-					if i == m.Selected {
-						text.Bold()
-					}
-				}
-				f.Text("终端").Bold()
+			}
+			frame.Text("终端").Bold()
+			terminal = frame.Column().FillHeight().MinHeight(terminalLineHeight)
+			terminal.Children(func() {
 				for _, line := range terminalLines(m) {
-					f.Text(line).Mono()
+					frame.Text(line).Mono()
 				}
-				f.Spacer()
-				f.Text(statusText(m.Status)).Muted()
 			})
+			frame.Text(statusText(m.Status)).Muted()
 		})
+		frame.End()
+		m.fitRows(terminal.Rect().Height)
 	}
 	return config
 }
@@ -126,4 +132,22 @@ func statusText(status string) string {
 		return "未连接"
 	}
 	return status
+}
+
+// rowsForHeight 按终端区域高度计算网格行数，至少一行。
+func rowsForHeight(height float32) int {
+	rows := int(height / terminalLineHeight)
+	if rows < 1 {
+		return 1
+	}
+	return rows
+}
+
+// fitRows 让网格行数跟随终端区域。列数保持不变。
+func (m *Model) fitRows(height float32) {
+	if m == nil || m.Grid == nil {
+		return
+	}
+	cols, _ := m.Grid.Size()
+	m.Grid.Resize(cols, rowsForHeight(height))
 }
