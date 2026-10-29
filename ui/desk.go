@@ -47,7 +47,9 @@ type Model struct {
 	EditHost bool
 	// ConfirmDelete 为真时显示删除确认。下标由 Selected 指定。
 	ConfirmDelete bool
-	view          flex.View
+	// Focus 是当前焦点说明。为空时未连接界面显示主机列表。
+	Focus string
+	view  flex.View
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -132,6 +134,9 @@ func NewConfig(m *Model) app.Config {
 				}
 			})
 			frame.Text(statusText(m.Status)).Muted()
+			if focus := focusText(m); focus != "" {
+				frame.Text(focus).Muted()
+			}
 			if place := scrollbackText(m); place != "" {
 				frame.Text(place).Muted()
 			}
@@ -259,6 +264,16 @@ func withCursor(line string, x int) string {
 	marked = append(marked, '▍')
 	marked = append(marked, chars[x:]...)
 	return string(marked)
+}
+
+func focusText(m *Model) string {
+	if m == nil || statusText(m.Status) != "未连接" {
+		return ""
+	}
+	if strings.TrimSpace(m.Focus) == "" {
+		return "焦点 主机列表"
+	}
+	return "焦点 " + strings.TrimSpace(m.Focus)
 }
 
 func newHostFormText(m *Model) string {

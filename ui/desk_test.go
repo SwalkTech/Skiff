@@ -537,6 +537,42 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestDisconnectedFocusIsComplete(t *testing.T) {
+	model := &Model{Status: "未连接", Focus: "终端"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	focus, ok := labelByValue(snapshot, "焦点 终端")
+	if !ok || focus.Bounds.Width <= 0 || focus.Bounds.Height <= 0 {
+		t.Fatal("未连接时没有完整显示焦点指示")
+	}
+	status, ok := labelByValue(snapshot, "未连接")
+	if ok && overlaps(focus.Bounds, status.Bounds) {
+		t.Fatal("焦点指示与状态栏重叠")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("未连接的焦点指示显示了口令")
+		}
+	}
+
+	empty := &Model{Status: "未连接"}
+	emptyDriver, err := app.NewDriver(NewConfig(empty), &canvas)
+	if err != nil {
+		t.Fatalf("创建默认焦点界面失败: %v", err)
+	}
+	defer emptyDriver.Close()
+	defaultFocus, ok := labelByValue(emptyDriver.Snapshot(), "焦点 主机列表")
+	if !ok || defaultFocus.Bounds.Width <= 0 || defaultFocus.Bounds.Height <= 0 {
+		t.Fatal("未连接时没有完整显示默认焦点")
+	}
+}
+
 func TestDisconnectedDeleteConfirmIsComplete(t *testing.T) {
 	model := &Model{
 		Status:        "未连接",
