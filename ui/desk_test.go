@@ -66,6 +66,38 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 	}
 }
 
+func TestConnectingErrorIsComplete(t *testing.T) {
+	model := &Model{Status: "正在连接"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	model.Fail("认证失败")
+	if err := driver.Resize(800, 480); err != nil {
+		t.Fatalf("连接失败后刷新失败: %v", err)
+	}
+	const want = "认证失败"
+	found := false
+	for _, label := range driver.Snapshot().Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("正在连接时的错误提示显示了口令")
+		}
+		if label.Value != want {
+			continue
+		}
+		found = true
+		if label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatal("正在连接时的错误提示没有可显示的区域")
+		}
+	}
+	if !found {
+		t.Fatalf("未完整显示正在连接时的错误提示: %s", want)
+	}
+}
+
 func TestConnectingFingerprintPromptIsComplete(t *testing.T) {
 	const fingerprint = "SHA256:connect1234"
 	model := &Model{Status: "正在连接", Fingerprint: fingerprint}
