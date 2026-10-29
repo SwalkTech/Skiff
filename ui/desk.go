@@ -34,8 +34,9 @@ type Model struct {
 	Fingerprint string
 	view        flex.View
 
-	paintedTerminal string
-	terminalPaints  int
+	paintedTerminal    string
+	terminalPaints     int
+	lastTerminalHeight float32
 }
 
 // NewConfig 描述主机列表和一块静态等宽文本。测试可以驱动同一份配置而不打开窗口。
@@ -86,6 +87,7 @@ func NewConfig(m *Model) app.Config {
 		})
 		frame.End()
 		area := terminal.Rect()
+		m.lastTerminalHeight = area.Height
 		m.fitGrid(area.Width, area.Height)
 	}
 	return config

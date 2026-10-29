@@ -192,6 +192,44 @@ func TestHostListScrollsToLastItem(t *testing.T) {
 	}
 }
 
+func TestHostListAndTerminalStayVisibleWhenResized(t *testing.T) {
+	model := &Model{
+		Status: "未连接",
+		Hosts:  []store.Host{{User: "alice", Address: "example.com", Port: 22}},
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	var shortTerminal float32
+	for _, height := range []int{280, 720} {
+		if err := driver.Resize(800, height); err != nil {
+			t.Fatalf("调整窗口高度 %d 失败: %v", height, err)
+		}
+		snapshot := driver.Snapshot()
+		host, ok := labelByValue(snapshot, "example.com")
+		if !ok || host.Bounds.Width <= 0 || host.Bounds.Height <= 0 {
+			t.Fatalf("高度 %d 时主机列表不可见", height)
+		}
+		terminal, ok := labelByValue(snapshot, "等待连接")
+		if !ok || terminal.Bounds.Width <= 0 || terminal.Bounds.Height <= 0 {
+			t.Fatalf("高度 %d 时终端区不可见", height)
+		}
+		if host.Bounds.Y+host.Bounds.Height > terminal.Bounds.Y+1 {
+			t.Fatalf("高度 %d 时主机列表与终端区重叠", height)
+		}
+		if height == 280 {
+			shortTerminal = model.lastTerminalHeight
+		}
+		if height == 720 && model.lastTerminalHeight <= shortTerminal {
+			t.Fatalf("窗口变高后终端区高度没有增加: %v -> %v", shortTerminal, model.lastTerminalHeight)
+		}
+	}
+}
+
 func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	model := &Model{Status: "未连接"}
 	var canvas vivaui.Canvas
