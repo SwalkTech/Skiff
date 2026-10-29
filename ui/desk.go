@@ -277,7 +277,7 @@ func focusText(m *Model) string {
 }
 
 func newHostFormText(m *Model) string {
-	if m == nil || !m.ShowNewHost || statusText(m.Status) != "未连接" {
+	if m == nil || !m.ShowNewHost || !statusBeforeConnected(m.Status) {
 		return ""
 	}
 	return "地址|用户|端口"
