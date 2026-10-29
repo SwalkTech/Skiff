@@ -267,7 +267,7 @@ func withCursor(line string, x int) string {
 }
 
 func focusText(m *Model) string {
-	if m == nil || statusText(m.Status) != "未连接" {
+	if m == nil || !statusBeforeConnected(m.Status) {
 		return ""
 	}
 	if strings.TrimSpace(m.Focus) == "" {
