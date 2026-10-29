@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/SwalkTech/Skiff/store"
+	"github.com/SwalkTech/Skiff/term"
 	"github.com/vivaui/viva/app"
 	vivaui "github.com/vivaui/viva/ui"
 )
@@ -62,6 +63,25 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 	}
 	if !hasLabel(driver.Snapshot(), "未连接") {
 		t.Fatal("没有会话时状态栏应显示未连接")
+	}
+}
+
+func TestGridTextAppearsInTerminal(t *testing.T) {
+	grid := term.New(20, 3)
+	if _, err := grid.Write([]byte("hello\r\n世界")); err != nil {
+		t.Fatalf("写入网格失败: %v", err)
+	}
+	model := &Model{Grid: grid}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	if !hasLabel(snapshot, "hello") || !hasLabel(snapshot, "世界") {
+		t.Fatal("终端区没有显示网格中的字符")
 	}
 }
 

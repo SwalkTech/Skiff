@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/SwalkTech/Skiff/store"
+	"github.com/SwalkTech/Skiff/term"
 	"github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/flex"
 	vivaui "github.com/vivaui/viva/ui"
@@ -22,6 +23,7 @@ type Model struct {
 	Selected int
 	Screen   string
 	Status   string
+	Grid     *term.Grid
 	view     flex.View
 }
 
@@ -46,7 +48,7 @@ func NewConfig(m *Model) app.Config {
 					}
 				}
 				f.Text("终端").Bold()
-				for _, line := range screenLines(m.Screen) {
+				for _, line := range terminalLines(m) {
 					f.Text(line).Mono()
 				}
 				f.Spacer()
@@ -99,6 +101,24 @@ func screenLines(screen string) []string {
 		return []string{"等待连接"}
 	}
 	return strings.Split(screen, "\n")
+}
+
+// terminalLines 优先显示网格里已经出现的字符。没有网格或网格仍为空时，退回静态文本。
+func terminalLines(m *Model) []string {
+	if m.Grid == nil {
+		return screenLines(m.Screen)
+	}
+	_, rows := m.Grid.Size()
+	lines := make([]string, 0, rows)
+	for y := 0; y < rows; y++ {
+		if line := m.Grid.Row(y); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) == 0 {
+		return screenLines(m.Screen)
+	}
+	return lines
 }
 
 func statusText(status string) string {
