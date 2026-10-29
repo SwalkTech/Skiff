@@ -537,6 +537,48 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestConnectingSelectedRowIsDistinct(t *testing.T) {
+	model := &Model{
+		Status: "正在连接",
+		Hosts: []store.Host{
+			{User: "ann", Address: "a.example", Port: 22},
+			{User: "bob", Address: "b.example", Port: 2222},
+		},
+		Selected: 1,
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	current, ok := labelByValue(snapshot, "当前")
+	if !ok || current.Bounds.Width <= 0 || current.Bounds.Height <= 0 {
+		t.Fatal("正在连接时选中行没有可见的当前标记")
+	}
+	bob, ok := labelByValue(snapshot, "bob")
+	if !ok {
+		t.Fatal("正在连接时看不到选中用户")
+	}
+	ann, ok := labelByValue(snapshot, "ann")
+	if !ok {
+		t.Fatal("正在连接时看不到未选中用户")
+	}
+	if bob.Weight <= ann.Weight {
+		t.Fatal("正在连接时选中行没有比其他行更强调")
+	}
+	if overlaps(current.Bounds, bob.Bounds) {
+		t.Fatal("正在连接时当前标记与用户重叠")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("正在连接的选中行显示了口令")
+		}
+	}
+}
+
 func TestConnectingHostRowAndColumns(t *testing.T) {
 	model := &Model{
 		Status: "正在连接",
