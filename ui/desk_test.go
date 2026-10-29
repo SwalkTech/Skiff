@@ -163,6 +163,71 @@ func TestConnectingStatusIsComplete(t *testing.T) {
 	}
 }
 
+func TestLongAddressTruncatesButStaysAvailable(t *testing.T) {
+	const full = "very-long-host-name.internal.example.test"
+	model := &Model{
+		Hosts: []store.Host{{
+			User:    "alice",
+			Address: full,
+			Port:    22,
+		}},
+		Selected: 0,
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+	if err := driver.Resize(320, 480); err != nil {
+		t.Fatalf("收窄窗口失败: %v", err)
+	}
+
+	snapshot := driver.Snapshot()
+	truncated := false
+	for _, label := range snapshot.Labels {
+		if label.Value == full {
+			t.Fatal("窄窗口仍完整画出超长地址")
+		}
+		if strings.HasSuffix(label.Value, "…") && strings.HasPrefix(full, strings.TrimSuffix(label.Value, "…")) {
+			truncated = true
+		}
+	}
+	if !truncated {
+		t.Fatal("超长地址没有被截断")
+	}
+
+	found := false
+	for _, hit := range snapshot.Hits {
+		if hit.Label != full {
+			continue
+		}
+		found = true
+		if hit.Bounds.Width <= 0 || hit.Bounds.Height <= 0 {
+			t.Fatal("完整地址没有可查看的区域")
+		}
+	}
+	if !found {
+		t.Fatal("无法通过可访问名称查看完整地址")
+	}
+
+	user, ok := labelByValue(snapshot, "alice")
+	if !ok {
+		t.Fatal("窄窗口看不到用户")
+	}
+	port, ok := labelByValue(snapshot, "22")
+	if !ok {
+		t.Fatal("窄窗口看不到端口")
+	}
+	if overlaps(user.Bounds, port.Bounds) {
+		t.Fatal("窄窗口里用户和端口重叠")
+	}
+}
+
+func overlaps(a, b vivaui.Rect) bool {
+	return a.X < b.X+b.Width && b.X < a.X+a.Width && a.Y < b.Y+b.Height && b.Y < a.Y+a.Height
+}
+
 func TestHostListScrollsToLastItem(t *testing.T) {
 	hosts := make([]store.Host, 30)
 	for i := range hosts {

@@ -20,6 +20,7 @@ var (
 	tree       = vivaui.Tree{}
 	page       = tree.Feature("desk")
 	hostListID = tree.ID(page, "hosts")
+	hostRows   = tree.Sub(page, tree.Name("host-rows"))
 )
 
 // Model 是主窗口要画的内容。它不保存连接，也不发起 SSH 握手。
@@ -61,7 +62,8 @@ func NewConfig(m *Model) app.Config {
 							frame.Text("当前").Bold()
 						}
 						user := frame.Text(host.User)
-						address := frame.Text(host.Address)
+						address := frame.Text(host.Address).MaxWidth(120).Ellipsis()
+						address.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
 						port := frame.Text(strconv.Itoa(host.Port))
 						if selected {
 							user.Bold()
