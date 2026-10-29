@@ -537,6 +537,43 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestWindowTitleShowsSelectedHost(t *testing.T) {
+	model := &Model{
+		Status: "未连接",
+		Hosts: []store.Host{{
+			User:    "alice",
+			Address: "example.com",
+			Port:    22,
+		}},
+		Selected: 0,
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	title := driver.Snapshot().Title
+	const want = "Skiff — example.com — 未连接"
+	if title != want {
+		t.Fatalf("选中主机时窗口标题 = %q，希望 %q", title, want)
+	}
+	if !strings.Contains(title, "example.com") {
+		t.Fatal("窗口标题没有包含当前主机")
+	}
+
+	none := &Model{Status: "未连接", Selected: -1}
+	noneDriver, err := app.NewDriver(NewConfig(none), &canvas)
+	if err != nil {
+		t.Fatalf("创建未选择主机的界面失败: %v", err)
+	}
+	defer noneDriver.Close()
+	if got := noneDriver.Snapshot().Title; got != "Skiff — 未连接" {
+		t.Fatalf("未选择主机时窗口标题 = %q", got)
+	}
+}
+
 func TestConnectingFocusIsComplete(t *testing.T) {
 	model := &Model{Status: "正在连接", Focus: "终端"}
 	var canvas vivaui.Canvas

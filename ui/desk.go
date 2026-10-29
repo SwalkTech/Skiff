@@ -327,14 +327,18 @@ func windowTitle(m *Model) string {
 	if m == nil {
 		return "Skiff"
 	}
-	switch statusText(m.Status) {
-	case "未连接":
-		return "Skiff — 未连接"
-	case "正在连接":
-		return "Skiff — 正在连接"
-	default:
-		return "Skiff — " + statusText(m.Status)
+	title := "Skiff"
+	if host, ok := selectedHost(m); ok && strings.TrimSpace(host.Address) != "" {
+		title += " — " + strings.TrimSpace(host.Address)
 	}
+	return title + " — " + statusText(m.Status)
+}
+
+func selectedHost(m *Model) (store.Host, bool) {
+	if m == nil || m.Selected < 0 || m.Selected >= len(m.Hosts) {
+		return store.Host{}, false
+	}
+	return m.Hosts[m.Selected], true
 }
 
 func selectionText(m *Model) string {
