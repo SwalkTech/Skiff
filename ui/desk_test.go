@@ -192,6 +192,31 @@ func TestHostListScrollsToLastItem(t *testing.T) {
 	}
 }
 
+func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
+	model := &Model{Status: "未连接"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	const want = "等待连接"
+	found := false
+	for _, label := range driver.Snapshot().Labels {
+		if label.Value != want {
+			continue
+		}
+		found = true
+		if label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatal("等待连接没有可显示的区域")
+		}
+	}
+	if !found {
+		t.Fatal("没有会话时终端区没有显示等待连接")
+	}
+}
+
 func TestEmptyHostListShowsPlaceholder(t *testing.T) {
 	model := &Model{Hosts: nil, Selected: -1}
 	var canvas vivaui.Canvas
