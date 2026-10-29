@@ -163,6 +163,46 @@ func TestConnectingStatusIsComplete(t *testing.T) {
 	}
 }
 
+func TestDisconnectedHostListIsComplete(t *testing.T) {
+	model := &Model{
+		Status: "未连接",
+		Hosts: []store.Host{{
+			User:    "alice",
+			Address: "example.com",
+			Port:    22,
+		}},
+		Selected: 0,
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	user, ok := labelByValue(snapshot, "alice")
+	if !ok || user.Bounds.Width <= 0 || user.Bounds.Height <= 0 {
+		t.Fatal("未连接时用户列不完整")
+	}
+	address, ok := labelByValue(snapshot, "example.com")
+	if !ok || address.Bounds.Width <= 0 || address.Bounds.Height <= 0 {
+		t.Fatal("未连接时地址列不完整")
+	}
+	port, ok := labelByValue(snapshot, "22")
+	if !ok || port.Bounds.Width <= 0 || port.Bounds.Height <= 0 {
+		t.Fatal("未连接时端口列不完整")
+	}
+	if overlaps(user.Bounds, address.Bounds) || overlaps(address.Bounds, port.Bounds) || overlaps(user.Bounds, port.Bounds) {
+		t.Fatal("未连接时主机列表字段重叠")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("未连接的主机列表显示了口令")
+		}
+	}
+}
+
 func TestTrailingEmptyCellsAreNotDrawn(t *testing.T) {
 	grid := term.New(40, 2)
 	if _, err := grid.Write([]byte("a")); err != nil {
