@@ -307,14 +307,14 @@ func selectedHostFields(m *Model, enabled bool) []string {
 }
 
 func tabCloseText(m *Model) string {
-	if m == nil || statusText(m.Status) != "未连接" || strings.TrimSpace(m.Tab) == "" {
+	if m == nil || !statusBeforeConnected(m.Status) || strings.TrimSpace(m.Tab) == "" {
 		return ""
 	}
 	return "关闭"
 }
 
 func sessionTabText(m *Model) string {
-	if m == nil || statusText(m.Status) != "未连接" {
+	if m == nil || !statusBeforeConnected(m.Status) {
 		return ""
 	}
 	if strings.TrimSpace(m.Tab) == "" {
