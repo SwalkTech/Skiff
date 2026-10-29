@@ -209,11 +209,14 @@ func visibleHosts(m *Model) []indexedHost {
 	return out
 }
 
-func screenLines(screen string) []string {
-	if strings.TrimSpace(screen) == "" {
-		return []string{"等待连接"}
+func screenLines(m *Model) []string {
+	if m != nil && strings.TrimSpace(m.Screen) != "" {
+		return strings.Split(m.Screen, "\n")
 	}
-	return strings.Split(screen, "\n")
+	if m == nil {
+		return []string{"未连接"}
+	}
+	return []string{statusText(m.Status)}
 }
 
 // noteTerminal 只在可见终端文本变化时记一次重绘。
@@ -230,7 +233,7 @@ func (m *Model) noteTerminal(lines []string) {
 // 光标所在行会插入标记，位置与 Grid.Cursor 的列一致。
 func terminalLines(m *Model) []string {
 	if m.Grid == nil {
-		return screenLines(m.Screen)
+		return screenLines(m)
 	}
 	_, rows := m.Grid.Size()
 	x, cursorY := m.Grid.Cursor()
@@ -245,7 +248,7 @@ func terminalLines(m *Model) []string {
 		}
 	}
 	if len(lines) == 0 {
-		return screenLines(m.Screen)
+		return screenLines(m)
 	}
 	return lines
 }
@@ -271,7 +274,7 @@ func focusText(m *Model) string {
 		return ""
 	}
 	if strings.TrimSpace(m.Focus) == "" {
-		return "焦点 主机列表"
+		return "焦点 主机"
 	}
 	return "焦点 " + strings.TrimSpace(m.Focus)
 }

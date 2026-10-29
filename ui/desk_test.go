@@ -496,7 +496,7 @@ func TestHostListAndTerminalStayVisibleWhenResized(t *testing.T) {
 		if !ok || host.Bounds.Width <= 0 || host.Bounds.Height <= 0 {
 			t.Fatalf("高度 %d 时主机列表不可见", height)
 		}
-		terminal, ok := labelByValue(snapshot, "等待连接")
+		terminal, ok := labelByValue(snapshot, "未连接")
 		if !ok || terminal.Bounds.Width <= 0 || terminal.Bounds.Height <= 0 {
 			t.Fatalf("高度 %d 时终端区不可见", height)
 		}
@@ -521,7 +521,7 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 	defer driver.Close()
 
-	const want = "等待连接"
+	const want = "未连接"
 	found := false
 	for _, label := range driver.Snapshot().Labels {
 		if label.Value != want {
@@ -529,11 +529,11 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 		}
 		found = true
 		if label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
-			t.Fatal("等待连接没有可显示的区域")
+			t.Fatal("未连接没有可显示的区域")
 		}
 	}
 	if !found {
-		t.Fatal("没有会话时终端区没有显示等待连接")
+		t.Fatal("没有会话时终端区没有显示未连接")
 	}
 }
 
@@ -604,7 +604,7 @@ func TestConnectingFocusIsComplete(t *testing.T) {
 		t.Fatalf("创建默认焦点界面失败: %v", err)
 	}
 	defer emptyDriver.Close()
-	defaultFocus, ok := labelByValue(emptyDriver.Snapshot(), "焦点 主机列表")
+	defaultFocus, ok := labelByValue(emptyDriver.Snapshot(), "焦点 主机")
 	if !ok || defaultFocus.Bounds.Width <= 0 || defaultFocus.Bounds.Height <= 0 {
 		t.Fatal("正在连接时没有完整显示默认焦点")
 	}
@@ -766,7 +766,7 @@ func TestConnectingDividerSeparatesRegions(t *testing.T) {
 	if !ok {
 		t.Fatal("正在连接时看不到主机地址")
 	}
-	terminal, ok := labelByValue(snapshot, "等待连接")
+	terminal, ok := labelByValue(snapshot, "正在连接")
 	if !ok {
 		t.Fatal("正在连接时看不到终端占位说明")
 	}
@@ -890,7 +890,7 @@ func TestConnectingSelectionIsComplete(t *testing.T) {
 	if !ok || selection.Bounds.Width <= 0 || selection.Bounds.Height <= 0 {
 		t.Fatal("正在连接时没有完整显示文本选区")
 	}
-	terminal, ok := labelByValue(snapshot, "等待连接")
+	terminal, ok := labelByValue(snapshot, "正在连接")
 	if ok && overlaps(selection.Bounds, terminal.Bounds) {
 		t.Fatal("正在连接时文本选区与终端占位说明重叠")
 	}
@@ -926,7 +926,7 @@ func TestConnectingScrollbackIsComplete(t *testing.T) {
 	if !ok || place.Bounds.Width <= 0 || place.Bounds.Height <= 0 {
 		t.Fatal("正在连接时没有完整显示回看位置")
 	}
-	terminal, ok := labelByValue(snapshot, "等待连接")
+	terminal, ok := labelByValue(snapshot, "正在连接")
 	if ok && overlaps(place.Bounds, terminal.Bounds) {
 		t.Fatal("正在连接时回看位置与终端占位说明重叠")
 	}
@@ -1025,9 +1025,9 @@ func TestConnectingTerminalAreaIsComplete(t *testing.T) {
 	defer driver.Close()
 
 	snapshot := driver.Snapshot()
-	terminal, ok := labelByValue(snapshot, "等待连接")
+	terminal, ok := labelByValue(snapshot, "正在连接")
 	if !ok || terminal.Bounds.Width <= 0 || terminal.Bounds.Height <= 0 {
-		t.Fatal("正在连接时终端区没有完整显示等待连接")
+		t.Fatal("正在连接时终端区没有完整显示正在连接")
 	}
 	host, ok := labelByValue(snapshot, "example.com")
 	if !ok {
@@ -1100,7 +1100,7 @@ func TestConnectingEmptyListPrompt(t *testing.T) {
 	if !ok || prompt.Bounds.Width <= 0 || prompt.Bounds.Height <= 0 {
 		t.Fatal("正在连接时没有完整显示还没有主机")
 	}
-	placeholder, ok := labelByValue(snapshot, "等待连接")
+	placeholder, ok := labelByValue(snapshot, "正在连接")
 	if ok && overlaps(prompt.Bounds, placeholder.Bounds) {
 		t.Fatal("正在连接时的空列表提示与终端占位说明重叠")
 	}
@@ -1316,7 +1316,7 @@ func TestDisconnectedFocusIsComplete(t *testing.T) {
 		t.Fatalf("创建默认焦点界面失败: %v", err)
 	}
 	defer emptyDriver.Close()
-	defaultFocus, ok := labelByValue(emptyDriver.Snapshot(), "焦点 主机列表")
+	defaultFocus, ok := labelByValue(emptyDriver.Snapshot(), "焦点 主机")
 	if !ok || defaultFocus.Bounds.Width <= 0 || defaultFocus.Bounds.Height <= 0 {
 		t.Fatal("未连接时没有完整显示默认焦点")
 	}
@@ -1478,7 +1478,7 @@ func TestDisconnectedDividerSeparatesRegions(t *testing.T) {
 	if !ok {
 		t.Fatal("未连接时看不到主机地址")
 	}
-	terminal, ok := labelByValue(snapshot, "等待连接")
+	terminal, ok := labelByValue(snapshot, "未连接")
 	if !ok {
 		t.Fatal("未连接时看不到终端占位说明")
 	}
@@ -1602,7 +1602,7 @@ func TestDisconnectedSelectionIsComplete(t *testing.T) {
 	if !ok || selection.Bounds.Width <= 0 || selection.Bounds.Height <= 0 {
 		t.Fatal("未连接时没有完整显示文本选区")
 	}
-	terminal, ok := labelByValue(snapshot, "等待连接")
+	terminal, ok := labelByValue(snapshot, "未连接")
 	if ok && overlaps(selection.Bounds, terminal.Bounds) {
 		t.Fatal("文本选区与终端占位说明重叠")
 	}
@@ -1638,7 +1638,7 @@ func TestDisconnectedScrollbackIsComplete(t *testing.T) {
 	if !ok || place.Bounds.Width <= 0 || place.Bounds.Height <= 0 {
 		t.Fatal("未连接时没有完整显示回看位置")
 	}
-	terminal, ok := labelByValue(snapshot, "等待连接")
+	terminal, ok := labelByValue(snapshot, "未连接")
 	if ok && overlaps(place.Bounds, terminal.Bounds) {
 		t.Fatal("回看位置与终端占位说明重叠")
 	}
@@ -1737,9 +1737,9 @@ func TestDisconnectedTerminalAreaIsComplete(t *testing.T) {
 	defer driver.Close()
 
 	snapshot := driver.Snapshot()
-	terminal, ok := labelByValue(snapshot, "等待连接")
+	terminal, ok := labelByValue(snapshot, "未连接")
 	if !ok || terminal.Bounds.Width <= 0 || terminal.Bounds.Height <= 0 {
-		t.Fatal("未连接时终端区没有完整显示等待连接")
+		t.Fatal("未连接时终端区没有完整显示未连接")
 	}
 	host, ok := labelByValue(snapshot, "example.com")
 	if !ok {
@@ -1812,7 +1812,7 @@ func TestDisconnectedEmptyListPrompt(t *testing.T) {
 	if !ok || prompt.Bounds.Width <= 0 || prompt.Bounds.Height <= 0 {
 		t.Fatal("未连接时没有完整显示还没有主机")
 	}
-	placeholder, ok := labelByValue(snapshot, "等待连接")
+	placeholder, ok := labelByValue(snapshot, "未连接")
 	if ok && overlaps(prompt.Bounds, placeholder.Bounds) {
 		t.Fatal("空列表提示与终端占位说明重叠")
 	}
