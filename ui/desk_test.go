@@ -537,6 +537,54 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestConnectingDeleteConfirmIsComplete(t *testing.T) {
+	model := &Model{
+		Status:        "正在连接",
+		ConfirmDelete: true,
+		Selected:      0,
+		Hosts: []store.Host{{
+			User:    "alice",
+			Address: "example.com",
+			Port:    22,
+		}},
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	fields := []string{"删除", "example.com", "alice", "22"}
+	var boxes []vivaui.Rect
+	var row float32 = -1
+	for _, value := range fields {
+		label, ok := labelByValue(snapshot, value)
+		if !ok || label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatalf("正在连接时删除确认缺少完整字段 %s", value)
+		}
+		if row < 0 {
+			row = label.Bounds.Y
+		} else if abs(label.Bounds.Y-row) > 1 {
+			t.Fatalf("字段 %s 不在删除确认同一行", value)
+		}
+		boxes = append(boxes, label.Bounds)
+	}
+	for i := 0; i < len(boxes); i++ {
+		for j := i + 1; j < len(boxes); j++ {
+			if overlaps(boxes[i], boxes[j]) {
+				t.Fatal("正在连接时删除确认字段重叠")
+			}
+		}
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") || label.Value == "口令" {
+			t.Fatal("正在连接的删除确认显示了口令")
+		}
+	}
+}
+
 func TestConnectingEditHostFormIsComplete(t *testing.T) {
 	model := &Model{
 		Status:   "正在连接",
