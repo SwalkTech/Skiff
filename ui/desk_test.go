@@ -99,6 +99,33 @@ func TestGridRowsFollowTerminalHeight(t *testing.T) {
 	}
 }
 
+func TestClearScreenRemovesOldText(t *testing.T) {
+	grid := term.New(20, 3)
+	if _, err := grid.Write([]byte("hello")); err != nil {
+		t.Fatalf("写入网格失败: %v", err)
+	}
+	model := &Model{Grid: grid}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+	if !hasLabel(driver.Snapshot(), "hello") {
+		t.Fatal("清屏前没有显示 hello")
+	}
+
+	if _, err := grid.Write([]byte("\x1b[2J")); err != nil {
+		t.Fatalf("清屏失败: %v", err)
+	}
+	if err := driver.Resize(800, 480); err != nil {
+		t.Fatalf("清屏后刷新失败: %v", err)
+	}
+	if hasLabel(driver.Snapshot(), "hello") {
+		t.Fatal("清屏后界面仍显示旧字符")
+	}
+}
+
 func TestCursorMatchesGridCell(t *testing.T) {
 	grid := term.New(10, 2)
 	if _, err := grid.Write([]byte("ab\r")); err != nil {
