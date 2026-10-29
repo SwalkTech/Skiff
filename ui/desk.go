@@ -29,7 +29,9 @@ type Model struct {
 	Screen   string
 	Status   string
 	Grid     *term.Grid
-	view     flex.View
+	// Fingerprint 是等待确认的主机密钥指纹。为空表示没有确认请求。
+	Fingerprint string
+	view        flex.View
 
 	paintedTerminal string
 	terminalPaints  int
@@ -66,6 +68,9 @@ func NewConfig(m *Model) app.Config {
 				}
 			})
 			frame.Text(statusText(m.Status)).Muted()
+			if prompt := fingerprintPrompt(m); prompt != "" {
+				frame.Text(prompt)
+			}
 		})
 		frame.End()
 		area := terminal.Rect()
@@ -173,6 +178,17 @@ func statusText(status string) string {
 		return "未连接"
 	}
 	return status
+}
+
+// fingerprintPrompt 在未连接且有待确认指纹时返回完整提示。提示中不包含口令。
+func fingerprintPrompt(m *Model) string {
+	if m == nil || strings.TrimSpace(m.Fingerprint) == "" {
+		return ""
+	}
+	if statusText(m.Status) != "未连接" {
+		return ""
+	}
+	return "确认主机密钥 " + strings.TrimSpace(m.Fingerprint)
 }
 
 // rowsForHeight 按终端区域高度计算网格行数，至少一行。
