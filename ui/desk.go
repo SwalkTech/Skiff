@@ -35,7 +35,9 @@ type Model struct {
 	Fingerprint string
 	// Filter 按用户或地址筛选主机。为空表示显示全部。
 	Filter string
-	view   flex.View
+	// Scrollback 是回看位置。为空表示没有可回看的历史。
+	Scrollback string
+	view       flex.View
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -90,6 +92,9 @@ func NewConfig(m *Model) app.Config {
 				}
 			})
 			frame.Text(statusText(m.Status)).Muted()
+			if place := scrollbackText(m); place != "" {
+				frame.Text(place).Muted()
+			}
 			if prompt := fingerprintPrompt(m); prompt != "" {
 				frame.Text(prompt)
 			}
@@ -211,6 +216,16 @@ func withCursor(line string, x int) string {
 	marked = append(marked, '▍')
 	marked = append(marked, chars[x:]...)
 	return string(marked)
+}
+
+func scrollbackText(m *Model) string {
+	if m == nil || statusText(m.Status) != "未连接" {
+		return ""
+	}
+	if strings.TrimSpace(m.Scrollback) == "" {
+		return "无回看"
+	}
+	return strings.TrimSpace(m.Scrollback)
 }
 
 func statusText(status string) string {
