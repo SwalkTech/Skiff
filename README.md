@@ -1,6 +1,6 @@
-# go-ssh
+# Skiff
 
-用 [Viva](https://github.com/vivaui/viva) 画原生窗口，SSH 会话、终端网格和主机数据放在本仓库的 Go 代码里。
+一艘只做 SSH 的小艇。用 [Viva](https://github.com/vivaui/viva) 画原生窗口，SSH 会话、终端网格和主机数据放在本仓库的 Go 代码里。
 
 第一个能用的版本只做四件事：
 
