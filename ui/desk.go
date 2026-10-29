@@ -45,7 +45,9 @@ type Model struct {
 	ShowNewHost bool
 	// EditHost 为真时显示正在编辑的主机。下标由 Selected 指定。
 	EditHost bool
-	view     flex.View
+	// ConfirmDelete 为真时显示删除确认。下标由 Selected 指定。
+	ConfirmDelete bool
+	view          flex.View
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -79,6 +81,13 @@ func NewConfig(m *Model) app.Config {
 				})
 			}
 			if fields := editHostFields(m); len(fields) > 0 {
+				frame.Row().Gap(12).Children(func() {
+					for _, field := range fields {
+						frame.Text(field)
+					}
+				})
+			}
+			if fields := deleteConfirmFields(m); len(fields) > 0 {
 				frame.Row().Gap(12).Children(func() {
 					for _, field := range fields {
 						frame.Text(field)
@@ -260,7 +269,19 @@ func newHostFormText(m *Model) string {
 }
 
 func editHostFields(m *Model) []string {
-	if m == nil || !m.EditHost || statusText(m.Status) != "未连接" {
+	return selectedHostFields(m, m != nil && m.EditHost)
+}
+
+func deleteConfirmFields(m *Model) []string {
+	fields := selectedHostFields(m, m != nil && m.ConfirmDelete)
+	if len(fields) == 0 {
+		return nil
+	}
+	return append([]string{"删除"}, fields...)
+}
+
+func selectedHostFields(m *Model, enabled bool) []string {
+	if m == nil || !enabled || statusText(m.Status) != "未连接" {
 		return nil
 	}
 	if m.Selected < 0 || m.Selected >= len(m.Hosts) {
