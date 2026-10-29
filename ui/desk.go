@@ -30,6 +30,9 @@ type Model struct {
 	Status   string
 	Grid     *term.Grid
 	view     flex.View
+
+	paintedTerminal string
+	terminalPaints  int
 }
 
 // NewConfig 描述主机列表和一块静态等宽文本。测试可以驱动同一份配置而不打开窗口。
@@ -55,8 +58,10 @@ func NewConfig(m *Model) app.Config {
 			}
 			frame.Text("终端").Bold()
 			terminal = frame.Column().FillHeight().MinHeight(terminalLineHeight)
+			lines := terminalLines(m)
+			m.noteTerminal(lines)
 			terminal.Children(func() {
-				for _, line := range terminalLines(m) {
+				for _, line := range lines {
 					frame.Text(line).Mono()
 				}
 			})
@@ -111,6 +116,16 @@ func screenLines(screen string) []string {
 		return []string{"等待连接"}
 	}
 	return strings.Split(screen, "\n")
+}
+
+// noteTerminal 只在可见终端文本变化时记一次重绘。
+func (m *Model) noteTerminal(lines []string) {
+	current := strings.Join(lines, "\n")
+	if current == m.paintedTerminal {
+		return
+	}
+	m.paintedTerminal = current
+	m.terminalPaints++
 }
 
 // terminalLines 优先显示网格里已经出现的字符。没有网格或网格仍为空时，退回静态文本。

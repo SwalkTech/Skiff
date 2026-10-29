@@ -99,6 +99,37 @@ func TestGridRowsFollowTerminalHeight(t *testing.T) {
 	}
 }
 
+func TestTerminalRedrawsOnlyWhenGridChanges(t *testing.T) {
+	grid := term.New(20, 3)
+	model := &Model{Grid: grid, Screen: "等待连接"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	first := model.terminalPaints
+	if first == 0 {
+		t.Fatal("首次绘制没有记录终端重绘")
+	}
+	if err := driver.Resize(800, 480); err != nil {
+		t.Fatalf("相同内容再次绘制失败: %v", err)
+	}
+	if model.terminalPaints != first {
+		t.Fatalf("相同网格再次绘制，重绘次数从 %d 变成 %d", first, model.terminalPaints)
+	}
+	if _, err := grid.Write([]byte("hello")); err != nil {
+		t.Fatalf("写入网格失败: %v", err)
+	}
+	if err := driver.Resize(800, 480); err != nil {
+		t.Fatalf("内容变化后绘制失败: %v", err)
+	}
+	if model.terminalPaints == first {
+		t.Fatal("网格变化后没有重绘终端")
+	}
+}
+
 func TestGridColsFollowTerminalWidth(t *testing.T) {
 	grid := term.New(8, 2)
 	model := &Model{Grid: grid}
