@@ -537,6 +537,25 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestDisconnectedWindowTitleIsComplete(t *testing.T) {
+	model := &Model{Status: "未连接"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	title := driver.Snapshot().Title
+	const want = "Skiff — 未连接"
+	if title != want {
+		t.Fatalf("未连接时窗口标题 = %q，希望 %q", title, want)
+	}
+	if strings.Contains(title, "secret-password") {
+		t.Fatal("未连接的窗口标题显示了口令")
+	}
+}
+
 func TestDisconnectedSelectionIsComplete(t *testing.T) {
 	model := &Model{Status: "未连接", Selection: "第 1 行第 2 列起"}
 	var canvas vivaui.Canvas

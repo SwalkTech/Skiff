@@ -49,7 +49,7 @@ type Model struct {
 // NewConfig 描述主机列表和一块静态等宽文本。测试可以驱动同一份配置而不打开窗口。
 func NewConfig(m *Model) app.Config {
 	theme := vivaui.LightTheme()
-	config := app.Config{Tree: &tree, Title: "Skiff", Width: 800, Height: 480, OnScroll: m.view.Wheel}
+	config := app.Config{Tree: &tree, Title: windowTitle(m), Width: 800, Height: 480, OnScroll: m.view.Wheel}
 	config.Paint = func(canvas *vivaui.Canvas, size vivaui.Size) {
 		bounds := vivaui.Rect{Width: size.Width, Height: size.Height}
 		canvas.Fill(bounds, theme.Background)
@@ -221,6 +221,20 @@ func withCursor(line string, x int) string {
 	marked = append(marked, '▍')
 	marked = append(marked, chars[x:]...)
 	return string(marked)
+}
+
+func windowTitle(m *Model) string {
+	if m == nil {
+		return "Skiff"
+	}
+	switch statusText(m.Status) {
+	case "未连接":
+		return "Skiff — 未连接"
+	case "正在连接":
+		return "Skiff — 正在连接"
+	default:
+		return "Skiff — " + statusText(m.Status)
+	}
 }
 
 func selectionText(m *Model) string {
