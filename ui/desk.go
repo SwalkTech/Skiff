@@ -129,14 +129,20 @@ func (m *Model) noteTerminal(lines []string) {
 }
 
 // terminalLines 优先显示网格里已经出现的字符。没有网格或网格仍为空时，退回静态文本。
+// 光标所在行会插入标记，位置与 Grid.Cursor 的列一致。
 func terminalLines(m *Model) []string {
 	if m.Grid == nil {
 		return screenLines(m.Screen)
 	}
 	_, rows := m.Grid.Size()
+	x, cursorY := m.Grid.Cursor()
 	lines := make([]string, 0, rows)
 	for y := 0; y < rows; y++ {
-		if line := m.Grid.Row(y); line != "" {
+		line := m.Grid.Row(y)
+		if y == cursorY {
+			line = withCursor(line, x)
+		}
+		if line != "" {
 			lines = append(lines, line)
 		}
 	}
@@ -144,6 +150,22 @@ func terminalLines(m *Model) []string {
 		return screenLines(m.Screen)
 	}
 	return lines
+}
+
+// withCursor 在第 x 个字符前放入光标标记。x 超出文本时先补空格。
+func withCursor(line string, x int) string {
+	if x < 0 {
+		x = 0
+	}
+	chars := []rune(line)
+	for len(chars) < x {
+		chars = append(chars, ' ')
+	}
+	marked := make([]rune, 0, len(chars)+1)
+	marked = append(marked, chars[:x]...)
+	marked = append(marked, '▍')
+	marked = append(marked, chars[x:]...)
+	return string(marked)
 }
 
 func statusText(status string) string {

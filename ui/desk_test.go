@@ -99,6 +99,29 @@ func TestGridRowsFollowTerminalHeight(t *testing.T) {
 	}
 }
 
+func TestCursorMatchesGridCell(t *testing.T) {
+	grid := term.New(10, 2)
+	if _, err := grid.Write([]byte("ab\r")); err != nil {
+		t.Fatalf("写入网格失败: %v", err)
+	}
+	x, y := grid.Cursor()
+	model := &Model{Grid: grid}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	want := withCursor(grid.Row(y), x)
+	if !hasLabel(driver.Snapshot(), want) {
+		t.Fatalf("界面没有在光标单元格显示 %q", want)
+	}
+	if []rune(want)[x] != '▍' {
+		t.Fatalf("光标标记不在第 %d 列: %q", x, want)
+	}
+}
+
 func TestTerminalRedrawsOnlyWhenGridChanges(t *testing.T) {
 	grid := term.New(20, 3)
 	model := &Model{Grid: grid, Screen: "等待连接"}
