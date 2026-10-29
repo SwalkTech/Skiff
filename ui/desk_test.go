@@ -537,6 +537,42 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestConnectingSelectionIsComplete(t *testing.T) {
+	model := &Model{Status: "正在连接", Selection: "第 1 行第 2 列起"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	selection, ok := labelByValue(snapshot, "第 1 行第 2 列起")
+	if !ok || selection.Bounds.Width <= 0 || selection.Bounds.Height <= 0 {
+		t.Fatal("正在连接时没有完整显示文本选区")
+	}
+	terminal, ok := labelByValue(snapshot, "等待连接")
+	if ok && overlaps(selection.Bounds, terminal.Bounds) {
+		t.Fatal("正在连接时文本选区与终端占位说明重叠")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("正在连接的文本选区显示了口令")
+		}
+	}
+
+	empty := &Model{Status: "正在连接"}
+	emptyDriver, err := app.NewDriver(NewConfig(empty), &canvas)
+	if err != nil {
+		t.Fatalf("创建无选区界面失败: %v", err)
+	}
+	defer emptyDriver.Close()
+	none, ok := labelByValue(emptyDriver.Snapshot(), "无选区")
+	if !ok || none.Bounds.Width <= 0 || none.Bounds.Height <= 0 {
+		t.Fatal("正在连接且没有选区时未完整显示无选区")
+	}
+}
+
 func TestConnectingScrollbackIsComplete(t *testing.T) {
 	model := &Model{Status: "正在连接", Scrollback: "第 12 行"}
 	var canvas vivaui.Canvas
