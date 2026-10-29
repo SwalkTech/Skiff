@@ -537,6 +537,41 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestConnectingTerminalAreaIsComplete(t *testing.T) {
+	model := &Model{
+		Status: "正在连接",
+		Hosts: []store.Host{{
+			User:    "alice",
+			Address: "example.com",
+			Port:    22,
+		}},
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	terminal, ok := labelByValue(snapshot, "等待连接")
+	if !ok || terminal.Bounds.Width <= 0 || terminal.Bounds.Height <= 0 {
+		t.Fatal("正在连接时终端区没有完整显示等待连接")
+	}
+	host, ok := labelByValue(snapshot, "example.com")
+	if !ok {
+		t.Fatal("正在连接时看不到主机地址")
+	}
+	if overlaps(host.Bounds, terminal.Bounds) {
+		t.Fatal("正在连接时终端区与主机列表重叠")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("正在连接的终端区显示了口令")
+		}
+	}
+}
+
 func TestConnectingFilterResults(t *testing.T) {
 	model := &Model{
 		Status: "正在连接",
