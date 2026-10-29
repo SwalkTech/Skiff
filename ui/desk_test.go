@@ -537,6 +537,42 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestDisconnectedSessionTabIsComplete(t *testing.T) {
+	model := &Model{Status: "未连接", Tab: "alice@example.com"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	tab, ok := labelByValue(snapshot, "alice@example.com")
+	if !ok || tab.Bounds.Width <= 0 || tab.Bounds.Height <= 0 {
+		t.Fatal("未连接时没有完整显示会话标签")
+	}
+	status, ok := labelByValue(snapshot, "未连接")
+	if ok && overlaps(tab.Bounds, status.Bounds) {
+		t.Fatal("会话标签与状态栏重叠")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("未连接的会话标签显示了口令")
+		}
+	}
+
+	empty := &Model{Status: "未连接"}
+	emptyDriver, err := app.NewDriver(NewConfig(empty), &canvas)
+	if err != nil {
+		t.Fatalf("创建无会话界面失败: %v", err)
+	}
+	defer emptyDriver.Close()
+	none, ok := labelByValue(emptyDriver.Snapshot(), "无会话")
+	if !ok || none.Bounds.Width <= 0 || none.Bounds.Height <= 0 {
+		t.Fatal("没有会话时未完整显示无会话")
+	}
+}
+
 func TestDisconnectedWindowTitleIsComplete(t *testing.T) {
 	model := &Model{Status: "未连接"}
 	var canvas vivaui.Canvas

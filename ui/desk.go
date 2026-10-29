@@ -39,7 +39,9 @@ type Model struct {
 	Scrollback string
 	// Selection 是终端选区说明。为空表示没有选区。
 	Selection string
-	view      flex.View
+	// Tab 是当前会话标签。为空表示没有会话。
+	Tab  string
+	view flex.View
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -56,6 +58,9 @@ func NewConfig(m *Model) app.Config {
 		frame := m.view.Begin(canvas, theme, bounds)
 		var terminal flex.Box
 		frame.Column().Fill().Pad(16).Gap(8).Children(func() {
+			if tab := sessionTabText(m); tab != "" {
+				frame.Text(tab)
+			}
 			frame.Text("主机").Bold()
 			frame.ScrollArea(hostListID).MaxHeight(120).Children(func() {
 				visible := visibleHosts(m)
@@ -221,6 +226,16 @@ func withCursor(line string, x int) string {
 	marked = append(marked, '▍')
 	marked = append(marked, chars[x:]...)
 	return string(marked)
+}
+
+func sessionTabText(m *Model) string {
+	if m == nil || statusText(m.Status) != "未连接" {
+		return ""
+	}
+	if strings.TrimSpace(m.Tab) == "" {
+		return "无会话"
+	}
+	return strings.TrimSpace(m.Tab)
 }
 
 func windowTitle(m *Model) string {
