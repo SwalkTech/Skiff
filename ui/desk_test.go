@@ -537,6 +537,25 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestConnectingWindowTitleIsComplete(t *testing.T) {
+	model := &Model{Status: "正在连接"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	title := driver.Snapshot().Title
+	const want = "Skiff — 正在连接"
+	if title != want {
+		t.Fatalf("正在连接时窗口标题 = %q，希望 %q", title, want)
+	}
+	if strings.Contains(title, "secret-password") {
+		t.Fatal("正在连接的窗口标题显示了口令")
+	}
+}
+
 func TestConnectingSelectionIsComplete(t *testing.T) {
 	model := &Model{Status: "正在连接", Selection: "第 1 行第 2 列起"}
 	var canvas vivaui.Canvas
