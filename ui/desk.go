@@ -348,13 +348,22 @@ func selectionText(m *Model) string {
 }
 
 func scrollbackText(m *Model) string {
-	if m == nil || statusText(m.Status) != "未连接" {
+	if m == nil || !statusBeforeConnected(m.Status) {
 		return ""
 	}
 	if strings.TrimSpace(m.Scrollback) == "" {
 		return "无回看"
 	}
 	return strings.TrimSpace(m.Scrollback)
+}
+
+func statusBeforeConnected(status string) bool {
+	switch statusText(status) {
+	case "未连接", "正在连接":
+		return true
+	default:
+		return false
+	}
 }
 
 func statusText(status string) string {

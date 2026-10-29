@@ -537,6 +537,42 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestConnectingScrollbackIsComplete(t *testing.T) {
+	model := &Model{Status: "正在连接", Scrollback: "第 12 行"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	place, ok := labelByValue(snapshot, "第 12 行")
+	if !ok || place.Bounds.Width <= 0 || place.Bounds.Height <= 0 {
+		t.Fatal("正在连接时没有完整显示回看位置")
+	}
+	terminal, ok := labelByValue(snapshot, "等待连接")
+	if ok && overlaps(place.Bounds, terminal.Bounds) {
+		t.Fatal("正在连接时回看位置与终端占位说明重叠")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("正在连接的回看位置显示了口令")
+		}
+	}
+
+	empty := &Model{Status: "正在连接"}
+	emptyDriver, err := app.NewDriver(NewConfig(empty), &canvas)
+	if err != nil {
+		t.Fatalf("创建空回看界面失败: %v", err)
+	}
+	defer emptyDriver.Close()
+	none, ok := labelByValue(emptyDriver.Snapshot(), "无回看")
+	if !ok || none.Bounds.Width <= 0 || none.Bounds.Height <= 0 {
+		t.Fatal("正在连接且没有历史时未完整显示无回看")
+	}
+}
+
 func TestConnectingCursorIsComplete(t *testing.T) {
 	grid := term.New(10, 2)
 	if _, err := grid.Write([]byte("ab\r")); err != nil {
