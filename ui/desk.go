@@ -61,6 +61,15 @@ func Load(path string) (*Model, error) {
 	return &Model{Hosts: hosts, Status: "未连接"}, nil
 }
 
+// Fail 把失败原因写到状态栏。窗口保持打开，原因中不应包含口令。
+func (m *Model) Fail(reason string) {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "连接失败"
+	}
+	m.Status = reason
+}
+
 // Run 打开主窗口。调用方负责准备要显示的主机和文本。
 func Run(m *Model) error {
 	var canvas vivaui.Canvas

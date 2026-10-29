@@ -65,6 +65,28 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 	}
 }
 
+func TestFailureStaysOnStatusBar(t *testing.T) {
+	model := &Model{Status: "未连接"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	model.Fail("认证失败")
+	if err := driver.Resize(800, 480); err != nil {
+		t.Fatalf("失败后窗口已不可刷新: %v", err)
+	}
+	snapshot := driver.Snapshot()
+	if !hasLabel(snapshot, "认证失败") {
+		t.Fatal("状态栏没有显示失败原因")
+	}
+	if !hasLabel(driver.Snapshot(), "认证失败") {
+		t.Fatal("失败后窗口未能继续显示状态")
+	}
+}
+
 func hasLabel(snapshot app.Snapshot, want string) bool {
 	for _, label := range snapshot.Labels {
 		if strings.Contains(label.Value, want) {
