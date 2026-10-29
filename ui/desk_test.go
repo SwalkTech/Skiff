@@ -60,6 +60,9 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 	if !hasLabel(driver.Snapshot(), "root@bastion.example:2222") {
 		t.Fatal("界面没有显示清单中的主机")
 	}
+	if !hasLabel(driver.Snapshot(), "未连接") {
+		t.Fatal("没有会话时状态栏应显示未连接")
+	}
 }
 
 func hasLabel(snapshot app.Snapshot, want string) bool {

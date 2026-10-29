@@ -19,6 +19,7 @@ var (
 type Model struct {
 	Hosts  []store.Host
 	Screen string
+	Status string
 	view   flex.View
 }
 
@@ -42,6 +43,8 @@ func NewConfig(m *Model) app.Config {
 				for _, line := range screenLines(m.Screen) {
 					f.Text(line).Mono()
 				}
+				f.Spacer()
+				f.Text(statusText(m.Status)).Muted()
 			})
 		})
 	}
@@ -55,7 +58,7 @@ func Load(path string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Model{Hosts: hosts}, nil
+	return &Model{Hosts: hosts, Status: "未连接"}, nil
 }
 
 // Run 打开主窗口。调用方负责准备要显示的主机和文本。
@@ -73,4 +76,11 @@ func screenLines(screen string) []string {
 		return []string{"等待连接"}
 	}
 	return strings.Split(screen, "\n")
+}
+
+func statusText(status string) string {
+	if strings.TrimSpace(status) == "" {
+		return "未连接"
+	}
+	return status
 }
