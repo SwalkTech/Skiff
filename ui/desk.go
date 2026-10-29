@@ -296,7 +296,7 @@ func deleteConfirmFields(m *Model) []string {
 }
 
 func selectedHostFields(m *Model, enabled bool) []string {
-	if m == nil || !enabled || statusText(m.Status) != "未连接" {
+	if m == nil || !enabled || !statusBeforeConnected(m.Status) {
 		return nil
 	}
 	if m.Selected < 0 || m.Selected >= len(m.Hosts) {
