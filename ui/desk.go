@@ -59,7 +59,12 @@ func NewConfig(m *Model) app.Config {
 		var terminal flex.Box
 		frame.Column().Fill().Pad(16).Gap(8).Children(func() {
 			if tab := sessionTabText(m); tab != "" {
-				frame.Text(tab)
+				frame.Row().Gap(8).Children(func() {
+					frame.Text(tab)
+					if closeLabel := tabCloseText(m); closeLabel != "" {
+						frame.Text(closeLabel)
+					}
+				})
 			}
 			frame.Text("主机").Bold()
 			frame.ScrollArea(hostListID).MaxHeight(120).Children(func() {
@@ -226,6 +231,13 @@ func withCursor(line string, x int) string {
 	marked = append(marked, '▍')
 	marked = append(marked, chars[x:]...)
 	return string(marked)
+}
+
+func tabCloseText(m *Model) string {
+	if m == nil || statusText(m.Status) != "未连接" || strings.TrimSpace(m.Tab) == "" {
+		return ""
+	}
+	return "关闭"
 }
 
 func sessionTabText(m *Model) string {

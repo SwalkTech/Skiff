@@ -537,6 +537,34 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestDisconnectedTabCloseButtonIsComplete(t *testing.T) {
+	model := &Model{Status: "未连接", Tab: "alice@example.com"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	closeButton, ok := labelByValue(snapshot, "关闭")
+	if !ok || closeButton.Bounds.Width <= 0 || closeButton.Bounds.Height <= 0 {
+		t.Fatal("未连接时没有完整显示标签关闭按钮")
+	}
+	tab, ok := labelByValue(snapshot, "alice@example.com")
+	if !ok {
+		t.Fatal("未连接时看不到会话标签")
+	}
+	if overlaps(closeButton.Bounds, tab.Bounds) {
+		t.Fatal("关闭按钮与会话标签重叠")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("未连接的关闭按钮界面显示了口令")
+		}
+	}
+}
+
 func TestDisconnectedSessionTabIsComplete(t *testing.T) {
 	model := &Model{Status: "未连接", Tab: "alice@example.com"}
 	var canvas vivaui.Canvas
