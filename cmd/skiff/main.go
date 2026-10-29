@@ -2,21 +2,34 @@ package main
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 
-	"github.com/SwalkTech/Skiff/store"
 	"github.com/SwalkTech/Skiff/ui"
 )
 
 func main() {
-	model := &ui.Model{
-		Hosts: []store.Host{{
-			Address: "example.com",
-			User:    "alice",
-			Port:    22,
-		}},
-		Screen: "Skiff\n等待连接",
+	path, err := hostsPath()
+	if err != nil {
+		log.Fatal(err)
+	}
+	model, err := ui.Load(path)
+	if err != nil {
+		log.Fatal(err)
 	}
 	if err := ui.Run(model); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func hostsPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	dir = filepath.Join(dir, "Skiff")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "hosts.json"), nil
 }

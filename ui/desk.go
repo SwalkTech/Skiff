@@ -48,6 +48,16 @@ func NewConfig(m *Model) app.Config {
 	return config
 }
 
+// Load 从主机清单文件构造窗口模型。文件不存在时列表为空。
+// 读到的地址、用户和端口会原样显示，口令不在清单中。
+func Load(path string) (*Model, error) {
+	hosts, err := store.Open(path).List()
+	if err != nil {
+		return nil, err
+	}
+	return &Model{Hosts: hosts}, nil
+}
+
 // Run 打开主窗口。调用方负责准备要显示的主机和文本。
 func Run(m *Model) error {
 	var canvas vivaui.Canvas
