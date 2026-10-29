@@ -93,6 +93,11 @@ func Load(path string) (*Model, error) {
 	return &Model{Hosts: hosts, Selected: selected, Status: "未连接"}, nil
 }
 
+// Connecting 把状态栏设为正在连接。窗口保持打开，状态中不写入口令。
+func (m *Model) Connecting() {
+	m.Status = "正在连接"
+}
+
 // Fail 把失败原因写到状态栏。窗口保持打开，原因中不应包含口令。
 func (m *Model) Fail(reason string) {
 	reason = strings.TrimSpace(reason)

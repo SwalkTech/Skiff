@@ -66,6 +66,38 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 	}
 }
 
+func TestConnectingStatusIsComplete(t *testing.T) {
+	model := &Model{Status: "未连接"}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	model.Connecting()
+	if err := driver.Resize(800, 480); err != nil {
+		t.Fatalf("进入正在连接后刷新失败: %v", err)
+	}
+	const want = "正在连接"
+	found := false
+	for _, label := range driver.Snapshot().Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("正在连接界面显示了口令")
+		}
+		if label.Value != want {
+			continue
+		}
+		found = true
+		if label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatal("正在连接状态没有可显示的区域")
+		}
+	}
+	if !found {
+		t.Fatal("状态栏没有完整显示正在连接")
+	}
+}
+
 func TestDisconnectedErrorIsComplete(t *testing.T) {
 	model := &Model{Status: "未连接"}
 	var canvas vivaui.Canvas
