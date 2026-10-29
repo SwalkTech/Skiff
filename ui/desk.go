@@ -94,6 +94,7 @@ func NewConfig(m *Model) app.Config {
 					})
 				}
 			})
+			frame.Divider()
 			frame.Text("终端").Bold()
 			terminal = frame.Column().FillHeight().MinHeight(terminalLineHeight)
 			lines := terminalLines(m)

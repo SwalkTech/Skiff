@@ -537,6 +537,54 @@ func TestNoSessionShowsTerminalPlaceholder(t *testing.T) {
 	}
 }
 
+func TestDisconnectedDividerSeparatesRegions(t *testing.T) {
+	model := &Model{
+		Status: "未连接",
+		Hosts: []store.Host{{
+			User:    "alice",
+			Address: "example.com",
+			Port:    22,
+		}},
+	}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	snapshot := driver.Snapshot()
+	host, ok := labelByValue(snapshot, "example.com")
+	if !ok {
+		t.Fatal("未连接时看不到主机地址")
+	}
+	terminal, ok := labelByValue(snapshot, "等待连接")
+	if !ok {
+		t.Fatal("未连接时看不到终端占位说明")
+	}
+	found := false
+	for _, primitive := range snapshot.Primitives {
+		if primitive.Bounds.Height > 2 || primitive.Bounds.Width <= 0 {
+			continue
+		}
+		if primitive.Bounds.Y <= host.Bounds.Y || primitive.Bounds.Y+primitive.Bounds.Height > terminal.Bounds.Y+1 {
+			continue
+		}
+		found = true
+		if overlaps(primitive.Bounds, host.Bounds) || overlaps(primitive.Bounds, terminal.Bounds) {
+			t.Fatal("分隔条与主机或终端文字重叠")
+		}
+	}
+	if !found {
+		t.Fatal("未连接时没有看到主机列表和终端区之间的分隔条")
+	}
+	for _, label := range snapshot.Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("未连接的分隔条界面显示了口令")
+		}
+	}
+}
+
 func TestDisconnectedTabCloseButtonIsComplete(t *testing.T) {
 	model := &Model{Status: "未连接", Tab: "alice@example.com"}
 	var canvas vivaui.Canvas
