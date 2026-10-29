@@ -11,7 +11,10 @@ import (
 	vivaui "github.com/vivaui/viva/ui"
 )
 
-const terminalLineHeight float32 = 20
+const (
+	terminalLineHeight float32 = 20
+	terminalCellWidth  float32 = 8
+)
 
 var (
 	tree = vivaui.Tree{}
@@ -60,7 +63,8 @@ func NewConfig(m *Model) app.Config {
 			frame.Text(statusText(m.Status)).Muted()
 		})
 		frame.End()
-		m.fitRows(terminal.Rect().Height)
+		area := terminal.Rect()
+		m.fitGrid(area.Width, area.Height)
 	}
 	return config
 }
@@ -143,11 +147,19 @@ func rowsForHeight(height float32) int {
 	return rows
 }
 
-// fitRows 让网格行数跟随终端区域。列数保持不变。
-func (m *Model) fitRows(height float32) {
+// colsForWidth 按终端区域宽度计算网格列数，至少一列。
+func colsForWidth(width float32) int {
+	cols := int(width / terminalCellWidth)
+	if cols < 1 {
+		return 1
+	}
+	return cols
+}
+
+// fitGrid 让网格行列跟随终端区域。
+func (m *Model) fitGrid(width, height float32) {
 	if m == nil || m.Grid == nil {
 		return
 	}
-	cols, _ := m.Grid.Size()
-	m.Grid.Resize(cols, rowsForHeight(height))
+	m.Grid.Resize(colsForWidth(width), rowsForHeight(height))
 }

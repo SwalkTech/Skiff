@@ -76,23 +76,56 @@ func TestGridRowsFollowTerminalHeight(t *testing.T) {
 	}
 	defer driver.Close()
 
-	_, tall := model.Grid.Size()
+	cols, tall := model.Grid.Size()
 	if err := driver.Resize(800, 240); err != nil {
 		t.Fatalf("缩小窗口失败: %v", err)
 	}
-	_, shortRows := model.Grid.Size()
+	shortCols, shortRows := model.Grid.Size()
 	if shortRows >= tall {
 		t.Fatalf("区域变矮后行数 = %d，原来 %d", shortRows, tall)
+	}
+	if shortCols != cols {
+		t.Fatalf("只改高度时列数从 %d 变成了 %d", cols, shortCols)
 	}
 	if err := driver.Resize(800, 720); err != nil {
 		t.Fatalf("放大窗口失败: %v", err)
 	}
-	cols, grown := model.Grid.Size()
+	grownCols, grown := model.Grid.Size()
 	if grown <= shortRows {
 		t.Fatalf("区域变高后行数 = %d，较矮时 %d", grown, shortRows)
 	}
-	if cols != 8 {
-		t.Fatalf("调整行数时列数变成了 %d", cols)
+	if grownCols != cols {
+		t.Fatalf("只改高度时列数从 %d 变成了 %d", cols, grownCols)
+	}
+}
+
+func TestGridColsFollowTerminalWidth(t *testing.T) {
+	grid := term.New(8, 2)
+	model := &Model{Grid: grid}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	wide, rows := model.Grid.Size()
+	if err := driver.Resize(320, 480); err != nil {
+		t.Fatalf("收窄窗口失败: %v", err)
+	}
+	narrow, _ := model.Grid.Size()
+	if narrow >= wide {
+		t.Fatalf("区域变窄后列数 = %d，原来 %d", narrow, wide)
+	}
+	if err := driver.Resize(960, 480); err != nil {
+		t.Fatalf("加宽窗口失败: %v", err)
+	}
+	grown, grownRows := model.Grid.Size()
+	if grown <= narrow {
+		t.Fatalf("区域变宽后列数 = %d，较窄时 %d", grown, narrow)
+	}
+	if grownRows != rows {
+		t.Fatalf("只改宽度时行数从 %d 变成了 %d", rows, grownRows)
 	}
 }
 
