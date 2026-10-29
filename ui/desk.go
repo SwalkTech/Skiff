@@ -185,15 +185,17 @@ func statusText(status string) string {
 	return status
 }
 
-// fingerprintPrompt 在未连接且有待确认指纹时返回完整提示。提示中不包含口令。
+// fingerprintPrompt 在尚未连上且有待确认指纹时返回完整提示。提示中不包含口令。
 func fingerprintPrompt(m *Model) string {
 	if m == nil || strings.TrimSpace(m.Fingerprint) == "" {
 		return ""
 	}
-	if statusText(m.Status) != "未连接" {
+	switch statusText(m.Status) {
+	case "未连接", "正在连接":
+		return "确认主机密钥 " + strings.TrimSpace(m.Fingerprint)
+	default:
 		return ""
 	}
-	return "确认主机密钥 " + strings.TrimSpace(m.Fingerprint)
 }
 
 // rowsForHeight 按终端区域高度计算网格行数，至少一行。

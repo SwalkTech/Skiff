@@ -66,6 +66,35 @@ func TestLoadShowsStoredHosts(t *testing.T) {
 	}
 }
 
+func TestConnectingFingerprintPromptIsComplete(t *testing.T) {
+	const fingerprint = "SHA256:connect1234"
+	model := &Model{Status: "正在连接", Fingerprint: fingerprint}
+	var canvas vivaui.Canvas
+	driver, err := app.NewDriver(NewConfig(model), &canvas)
+	if err != nil {
+		t.Fatalf("创建界面驱动失败: %v", err)
+	}
+	defer driver.Close()
+
+	want := "确认主机密钥 " + fingerprint
+	found := false
+	for _, label := range driver.Snapshot().Labels {
+		if strings.Contains(label.Value, "secret-password") {
+			t.Fatal("正在连接的指纹确认显示了口令")
+		}
+		if label.Value != want {
+			continue
+		}
+		found = true
+		if label.Bounds.Width <= 0 || label.Bounds.Height <= 0 {
+			t.Fatal("正在连接的指纹确认没有可显示的区域")
+		}
+	}
+	if !found {
+		t.Fatalf("未完整显示正在连接时的指纹确认: %s", want)
+	}
+}
+
 func TestConnectingStatusIsComplete(t *testing.T) {
 	model := &Model{Status: "未连接"}
 	var canvas vivaui.Canvas
