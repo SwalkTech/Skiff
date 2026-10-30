@@ -52,6 +52,23 @@ func TestClearScreen(t *testing.T) {
 	}
 }
 
+func TestOSCIsNotPrinted(t *testing.T) {
+	g := New(24, 2)
+	g.Write([]byte("\x1b]8;;https://example\x07你好"))
+	if got := g.Row(0); got != "你好" {
+		t.Fatalf("OSC 被写进网格: %q", got)
+	}
+}
+
+func TestCursorAddressRewritesCell(t *testing.T) {
+	g := New(6, 2)
+	g.Write([]byte("abcdef"))
+	g.Write([]byte("\x1b[1;1HX"))
+	if got := g.Row(0); got != "Xbcdef" {
+		t.Fatalf("定位后 = %q", got)
+	}
+}
+
 func TestUnknownControlDoesNotPrint(t *testing.T) {
 	g := New(8, 1)
 	g.Write([]byte("a\x1b[31mb"))

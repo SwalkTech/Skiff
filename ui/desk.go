@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	terminalLineHeight float32 = 20
-	terminalCellWidth  float32 = 8
+	terminalFontSize float32 = 14
+	terminalPad      float32 = 16
 )
 
 var (
@@ -131,7 +131,15 @@ func NewConfig(m *Model) app.Config {
 		Invalidator: &m.invalidator,
 		TextInput: func(ctx app.TextInputContext) *app.TextInput {
 			if ctx.Terminal && ctx.ID == terminalID && m.connected {
-				return &app.TextInput{OnEvent: m.onTerminalText}
+				bounds := ctx.Bounds
+				if bounds.Width < 8 || bounds.Height < 8 {
+					bounds = vivaui.Rect{X: 8, Y: 8, Width: 16, Height: 20}
+				}
+				font := ctx.FontSize
+				if font < 1 {
+					font = 14
+				}
+				return &app.TextInput{Bounds: bounds, FontSize: font, OnEvent: m.onTerminalText}
 			}
 			return fields(ctx)
 		},
@@ -140,6 +148,7 @@ func NewConfig(m *Model) app.Config {
 		bounds := vivaui.Rect{Width: size.Width, Height: size.Height}
 		canvas.Fill(bounds, theme.Background)
 		frame := m.view.Begin(canvas, theme, bounds)
+		cellW, cellH := canvas.MonoCellSize(terminalFontSize, vivaui.MonoSystem)
 		var terminal flex.Box
 		target := "未选择主机"
 		if host, ok := selectedHost(m); ok {
@@ -280,7 +289,7 @@ func NewConfig(m *Model) app.Config {
 							})
 						})
 					}
-					terminal = frame.Column().Grow(1).Fill().MinHeight(220).Background(terminalBG).Pad(16).Gap(8)
+					terminal = frame.Column().Grow(1).Fill().MinHeight(220).Background(terminalBG).Pad(terminalPad)
 					if m.showFiles {
 						terminal.Children(func() { m.paintFiles(frame, terminalFG) })
 					} else {
@@ -310,7 +319,7 @@ func NewConfig(m *Model) app.Config {
 								if empty && !m.connected && line == statusText(m.Status) {
 									continue
 								}
-								frame.Text(line).Mono().FontSize(14).Color(terminalFG)
+								frame.Text(line).Mono().FontSize(terminalFontSize).Height(cellH).Color(terminalFG)
 							}
 						})
 					}
@@ -320,7 +329,7 @@ func NewConfig(m *Model) app.Config {
 		frame.End()
 		area := terminal.Rect()
 		m.lastTerminalHeight = area.Height
-		m.fitGrid(area.Width, area.Height)
+		m.fitGrid(canvas, area.Width, area.Height, cellW, cellH)
 		m.noteResize()
 	}
 	return config
@@ -576,28 +585,37 @@ func fingerprintPrompt(m *Model) string {
 	}
 }
 
-// rowsForHeight 按终端区域高度计算网格行数，至少一行。
-func rowsForHeight(height float32) int {
-	rows := int(height / terminalLineHeight)
-	if rows < 1 {
-		return 1
-	}
-	return rows
-}
-
-// colsForWidth 按终端区域宽度计算网格列数，至少一列。
-func colsForWidth(width float32) int {
-	cols := int(width / terminalCellWidth)
-	if cols < 1 {
-		return 1
-	}
-	return cols
-}
-
-// fitGrid 让网格行列跟随终端区域。
-func (m *Model) fitGrid(width, height float32) {
+// fitGrid 按等宽字的真实格子和终端内边距计算行列，并通知远端。
+func (m *Model) fitGrid(canvas *vivaui.Canvas, width, height, cellW, cellH float32) {
 	if m == nil || m.Grid == nil {
 		return
 	}
-	m.Grid.Resize(colsForWidth(width), rowsForHeight(height))
+	if cellW < 1 || cellH < 1 {
+		if canvas != nil {
+			cellW, cellH = canvas.MonoCellSize(terminalFontSize, vivaui.MonoSystem)
+		}
+	}
+	if cellW < 1 {
+		cellW = terminalFontSize * 0.6
+	}
+	if cellH < 1 {
+		cellH = terminalFontSize * 1.18
+	}
+	innerW := width - terminalPad*2
+	innerH := height - terminalPad*2
+	if innerW < cellW {
+		innerW = cellW
+	}
+	if innerH < cellH {
+		innerH = cellH
+	}
+	cols := int(innerW / cellW)
+	rows := int(innerH / cellH)
+	if cols < 1 {
+		cols = 1
+	}
+	if rows < 1 {
+		rows = 1
+	}
+	m.Grid.Resize(cols, rows)
 }

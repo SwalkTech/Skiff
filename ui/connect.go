@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -129,7 +130,14 @@ func (m *Model) connectSelected() {
 	m.connected = false
 	m.Fingerprint = ""
 	m.Status = "正在连接"
-	go m.dial(ctx, gen, host, password, cols, rows)
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				m.publishDialErr(gen, fmt.Errorf("连接中断: %v", recovered), password)
+			}
+		}()
+		m.dial(ctx, gen, host, password, cols, rows)
+	}()
 }
 
 func (m *Model) dial(ctx context.Context, gen int, host store.Host, password string, cols, rows int) {

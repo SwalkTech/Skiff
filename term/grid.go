@@ -24,6 +24,8 @@ const (
 	stateText = iota
 	stateEsc
 	stateCSI
+	stateOSC
+	stateST
 )
 
 // New 创建至少有一行一列的网格。小于 1 的尺寸会提升到 1。
@@ -89,12 +91,16 @@ func (g *Grid) Write(p []byte) (int, error) {
 }
 
 // Resize 改变网格尺寸。原有内容按左上角对齐保留，超出部分被丢弃，不做重排。
+// 尺寸没变时不分配新缓冲。
 func (g *Grid) Resize(cols, rows int) {
 	if cols < 1 {
 		cols = 1
 	}
 	if rows < 1 {
 		rows = 1
+	}
+	if g.cell != nil && cols == g.cols && rows == g.rows {
+		return
 	}
 	next := make([]rune, cols*rows)
 	if g.cell != nil {
@@ -129,15 +135,34 @@ func (g *Grid) feed(r rune) {
 	case stateText:
 		g.feedText(r)
 	case stateEsc:
-		g.state = stateText
-		if r == '[' {
-			g.state = stateCSI
-			g.params = g.params[:0]
-			g.value = 0
-			g.has = false
-		}
+		g.feedEsc(r)
 	case stateCSI:
 		g.feedCSI(r)
+	case stateOSC:
+		if r == 0x07 {
+			g.state = stateText
+		} else if r == 0x1b {
+			g.state = stateST
+		}
+	case stateST:
+		g.state = stateText
+		if r != '\\' {
+			g.feedEsc(r)
+		}
+	}
+}
+
+func (g *Grid) feedEsc(r rune) {
+	switch r {
+	case '[':
+		g.state = stateCSI
+		g.params = g.params[:0]
+		g.value = 0
+		g.has = false
+	case ']':
+		g.state = stateOSC
+	default:
+		g.state = stateText
 	}
 }
 
@@ -172,10 +197,63 @@ func (g *Grid) feedCSI(r rune) {
 		// 私有模式标记不参与当前支持的清屏命令。
 	default:
 		g.pushParam()
-		if r == 'J' && param(g.params, 0) == 2 {
+		g.runCSI(r)
+		g.state = stateText
+	}
+}
+
+func (g *Grid) runCSI(final rune) {
+	switch final {
+	case 'H', 'f':
+		g.move(paramAt(g.params, 1, 1)-1, paramAt(g.params, 0, 1)-1)
+	case 'A':
+		g.move(g.x, g.y-paramAt(g.params, 0, 1))
+	case 'B':
+		g.move(g.x, g.y+paramAt(g.params, 0, 1))
+	case 'C':
+		g.move(g.x+paramAt(g.params, 0, 1), g.y)
+	case 'D':
+		g.move(g.x-paramAt(g.params, 0, 1), g.y)
+	case 'G':
+		g.move(paramAt(g.params, 0, 1)-1, g.y)
+	case 'K':
+		g.eraseLine(param(g.params, 0))
+	case 'J':
+		if param(g.params, 0) == 2 {
 			g.clear()
 		}
-		g.state = stateText
+	}
+}
+
+func (g *Grid) move(x, y int) {
+	g.wrap = false
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
+	if x >= g.cols {
+		x = g.cols - 1
+	}
+	if y >= g.rows {
+		y = g.rows - 1
+	}
+	g.x, g.y = x, y
+}
+
+func (g *Grid) eraseLine(mode int) {
+	start, end := g.x, g.cols
+	switch mode {
+	case 1:
+		start, end = 0, g.x+1
+	case 2:
+		start = 0
+	}
+	for x := start; x < end && x < g.cols; x++ {
+		if x >= 0 {
+			g.cell[g.y*g.cols+x] = 0
+		}
 	}
 }
 
@@ -233,4 +311,12 @@ func param(params []int, index int) int {
 		return 0
 	}
 	return params[index]
+}
+
+func paramAt(params []int, index, fallback int) int {
+	value := param(params, index)
+	if value <= 0 {
+		return fallback
+	}
+	return value
 }
