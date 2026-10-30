@@ -9,6 +9,8 @@ type Grid struct {
 	cols int
 	rows int
 	cell []rune
+	attr []style
+	pen  style
 	x    int
 	y    int
 	wrap bool
@@ -103,6 +105,7 @@ func (g *Grid) Resize(cols, rows int) {
 		return
 	}
 	next := make([]rune, cols*rows)
+	nextAttr := make([]style, cols*rows)
 	if g.cell != nil {
 		width := g.cols
 		if width > cols {
@@ -114,9 +117,13 @@ func (g *Grid) Resize(cols, rows int) {
 		}
 		for y := 0; y < height; y++ {
 			copy(next[y*cols:y*cols+width], g.cell[y*g.cols:y*g.cols+width])
+			if g.attr != nil {
+				copy(nextAttr[y*cols:y*cols+width], g.attr[y*g.cols:y*g.cols+width])
+			}
 		}
 	}
 	g.cell = next
+	g.attr = nextAttr
 	g.cols = cols
 	g.rows = rows
 	if g.x >= cols {
@@ -222,6 +229,8 @@ func (g *Grid) runCSI(final rune) {
 		if param(g.params, 0) == 2 {
 			g.clear()
 		}
+	case 'm':
+		g.applySGR(g.params)
 	}
 }
 
@@ -253,6 +262,9 @@ func (g *Grid) eraseLine(mode int) {
 	for x := start; x < end && x < g.cols; x++ {
 		if x >= 0 {
 			g.cell[g.y*g.cols+x] = 0
+			if g.attr != nil {
+				g.attr[g.y*g.cols+x] = style{}
+			}
 		}
 	}
 }
@@ -276,6 +288,9 @@ func (g *Grid) put(r rune) {
 		g.lineFeed()
 	}
 	g.cell[g.y*g.cols+g.x] = r
+	if g.attr != nil {
+		g.attr[g.y*g.cols+g.x] = g.pen
+	}
 	if g.x+1 >= g.cols {
 		g.wrap = true
 		return
@@ -297,10 +312,17 @@ func (g *Grid) lineFeed() {
 	}
 	copy(g.cell[:g.cols*(g.rows-1)], g.cell[g.cols:])
 	clear(g.cell[g.cols*(g.rows-1):])
+	if g.attr != nil {
+		copy(g.attr[:g.cols*(g.rows-1)], g.attr[g.cols:])
+		clear(g.attr[g.cols*(g.rows-1):])
+	}
 }
 
 func (g *Grid) clear() {
 	clear(g.cell)
+	if g.attr != nil {
+		clear(g.attr)
+	}
 	g.x = 0
 	g.y = 0
 	g.wrap = false

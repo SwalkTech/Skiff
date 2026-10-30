@@ -80,6 +80,15 @@ var (
 	terminalID       = tree.ID(page, "terminal")
 	viewChoice       = tree.Sub(page, tree.Name("view"))
 	themeID          = tree.ID(page, "theme")
+	updateYesID      = tree.ID(page, "update-yes")
+	updateNoID       = tree.ID(page, "update-no")
+	addPaneID        = tree.ID(page, "add-pane")
+	paneTerms        = tree.Sub(page, tree.Name("pane-term"))
+	paneFocus        = tree.Sub(page, tree.Name("pane-focus"))
+	closePane        = tree.Sub(page, tree.Name("close-pane"))
+	panePick0        = tree.Sub(page, tree.Name("pane-pick-0"))
+	panePick1        = tree.Sub(page, tree.Name("pane-pick-1"))
+	panePick2        = tree.Sub(page, tree.Name("pane-pick-2"))
 	fileRows         = tree.Sub(page, tree.Name("files"))
 	fileListID       = tree.ID(page, "file-list")
 	upID             = tree.ID(page, "up")
@@ -139,18 +148,31 @@ type Model struct {
 	stableCols      int
 	stableRows      int
 
-	mu             sync.Mutex
-	writeMu        sync.Mutex
-	client         *session.Client
-	cancel         context.CancelFunc
-	generation     int
-	keyReply       chan error
-	pending        []byte
-	askFingerprint string
-	askAuthorized  string
-	dialErr        string
-	dialOK         bool
-	readErr        error
+	mu                   sync.Mutex
+	writeMu              sync.Mutex
+	client               *session.Client
+	cancel               context.CancelFunc
+	generation           int
+	keyReply             chan error
+	pending              []byte
+	askFingerprint       string
+	askAuthorized        string
+	dialErr              string
+	dialOK               bool
+	readErr              error
+	updateVersion        string
+	updateURL            string
+	updateNote           string
+	updateBusy           bool
+	updateDismissed      bool
+	pendingUpdateVersion string
+	pendingUpdateURL     string
+	pendingUpdateNote    string
+	sessions             []*conn
+	panes                []pane
+	focus                int
+	nextSession          int
+	paneBox              flex.Box
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -165,6 +187,7 @@ func NewConfig(m *Model) app.Config {
 	if !m.dark && !themeChosen(m.path) {
 		m.dark = true
 	}
+	m.ensurePanes()
 	if m.split.Pos == 0 {
 		m.split.Pos = 300
 	}
@@ -194,10 +217,10 @@ func NewConfig(m *Model) app.Config {
 		OnKey:       m.onKey,
 		OnShortcut:  m.onShortcut,
 		OnWake:      m.wake,
-		OnClosed:    m.disconnect,
+		OnClosed:    m.disconnectAll,
 		Invalidator: &m.invalidator,
 		TextInput: func(ctx app.TextInputContext) *app.TextInput {
-			if ctx.Terminal && ctx.ID == terminalID && m.connected {
+			if ctx.Terminal && m.acceptsTerminal(ctx.ID) {
 				bounds := ctx.Bounds
 				if bounds.Width < 8 || bounds.Height < 8 {
 					bounds = vivaui.Rect{X: 8, Y: 8, Width: 16, Height: 20}
@@ -266,7 +289,6 @@ func NewConfig(m *Model) app.Config {
 							border := ink.line
 							if selected {
 								bg = ink.elevated
-								border = ink.accent
 							}
 							row := frame.Column().FillWidth().Pad(12).Gap(4).Radius(10).Border(1, border).Background(bg).HoverBackground(ink.elevated)
 							row.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
@@ -287,9 +309,19 @@ func NewConfig(m *Model) app.Config {
 									if m.hostHasPassword(host) {
 										frame.Text("已记住").Color(ink.accent)
 									}
+									if live := m.sessionFor(host); live != nil && live.connected {
+										frame.Text("在线").Color(ink.success)
+									}
 								})
 							}).Clicked() {
-								if selected && !m.connected && !m.dialing {
+								if live := m.sessionFor(host); live != nil && (live.connected || live.dialing) {
+									m.Selected = i
+									m.changePassword = false
+									m.recallPassword(host)
+									m.assignFocused(live)
+									return
+								}
+								if selected && !m.dialing {
 									m.connectSelected()
 									return
 								}
@@ -354,15 +386,36 @@ func NewConfig(m *Model) app.Config {
 						if m.showFiles {
 							view = 1
 						}
+						m.ensurePanes()
+						if m.panes[m.focus].showFiles {
+							view = 1
+						}
 						if i, ok := frame.Choice(viewChoice, []string{"终端", "文件"}, view).ChosenIndex(); ok && i != view {
+							m.panes[m.focus].showFiles = i == 1
 							m.showFiles = i == 1
 							if m.showFiles {
 								m.openFiles()
 							}
 						}
+						if frame.Button(addPaneID, "分栏").Outline().Small().Clicked() {
+							m.addPane()
+						}
 						frame.Spacer()
 						frame.Text(sessionHint(m)).Muted()
 					})
+					if prompt := updatePrompt(m); prompt != "" {
+						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Border(1, ink.line).Children(func() {
+							frame.Text(prompt)
+							frame.Row().Gap(8).Children(func() {
+								if !m.updateBusy && frame.Button(updateYesID, "更新").Small().Clicked() {
+									m.beginUpdate()
+								}
+								if frame.Button(updateNoID, "稍后").Outline().Small().Clicked() {
+									m.updateDismissed = true
+								}
+							})
+						})
+					}
 					if prompt := fingerprintPrompt(m); prompt != "" {
 						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Border(1, ink.line).Children(func() {
 							frame.Text(prompt)
@@ -376,48 +429,8 @@ func NewConfig(m *Model) app.Config {
 							})
 						})
 					}
-					terminal = frame.Column().Grow(1).Fill().MinHeight(220).Background(ink.terminal).Pad(terminalPad)
-					if m.showFiles {
-						terminal.Children(func() { m.paintFiles(frame, ink) })
-					} else {
-						if m.connected {
-							terminal.HitWith(terminalID, "终端输入", vivaui.HitOptions{Role: vivaui.RoleTerminal})
-						}
-						lines := terminalLines(m)
-						m.noteTerminal(lines)
-						terminal.Children(func() {
-							empty := m.Grid == nil && strings.TrimSpace(m.Screen) == ""
-							if empty && !m.connected {
-								hint := "选择左边的主机，然后点连接"
-								if _, ok := selectedHost(m); ok && m.remembered {
-									hint = "口令已记住，点连接或再点一次主机"
-								} else if _, ok := selectedHost(m); ok {
-									hint = "输入口令后点连接，之后不用再填"
-								}
-								frame.Text(hint).Color(ink.muted)
-							}
-							if m.dialing && empty {
-								frame.Text("正在连接 " + target).Color(ink.ink)
-							}
-							if m.connected && empty {
-								frame.Text("点击这里输入").Color(ink.muted)
-							}
-							for _, line := range lines {
-								if empty && !m.connected && line == statusText(m.Status) {
-									continue
-								}
-								cols := 1
-								if m.Grid != nil {
-									cols, _ = m.Grid.Size()
-								}
-								lineWidth := float32(cols) * cellW
-								if lineWidth < cellW {
-									lineWidth = cellW
-								}
-								frame.Text(line).Mono().FontSize(terminalFontSize).Height(cellH).MaxWidth(lineWidth).Color(ink.ink)
-							}
-						})
-					}
+					m.paintWorkArea(frame, ink, cellW, cellH, target)
+					terminal = m.paneBox
 				})
 			})
 		})
@@ -525,6 +538,9 @@ func (m *Model) Fail(reason string) {
 
 // Run 打开主窗口。调用方负责准备要显示的主机和文本。
 func Run(m *Model) error {
+	if m != nil {
+		go m.checkUpdate()
+	}
 	var canvas vivaui.Canvas
 	return app.RunCanvas(NewConfig(m), &canvas)
 }

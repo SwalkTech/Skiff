@@ -85,6 +85,16 @@ func (m *Model) forgetPassword(host store.Host) {
 }
 
 func (m *Model) connectLabel() string {
+	if host, ok := selectedHost(m); ok {
+		if s := m.sessionFor(host); s != nil {
+			switch {
+			case s.connected:
+				return "断开"
+			case s.dialing:
+				return "取消"
+			}
+		}
+	}
 	switch {
 	case m.connected:
 		return "断开"
@@ -96,13 +106,13 @@ func (m *Model) connectLabel() string {
 }
 
 func (m *Model) connectSelected() {
-	if m.connected || m.dialing {
-		m.disconnect()
-		return
-	}
 	host, ok := selectedHost(m)
 	if !ok {
 		m.Status = "请先选择一台主机"
+		return
+	}
+	if s := m.sessionFor(host); s != nil && (s.connected || s.dialing) {
+		m.disconnectConn(s)
 		return
 	}
 	password := m.passwordFor(host)
@@ -110,36 +120,40 @@ func (m *Model) connectSelected() {
 		m.Status = "请输入口令"
 		return
 	}
+	s := m.openConn(host)
+	s.secret = password
+	m.assignFocused(s)
 	cols, rows := 80, 24
 	if m.Grid != nil {
 		cols, rows = m.Grid.Size()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	m.mu.Lock()
-	m.generation++
-	gen := m.generation
-	if m.cancel != nil {
-		m.cancel()
+	s.mu.Lock()
+	s.generation++
+	gen := s.generation
+	if s.cancel != nil {
+		s.cancel()
 	}
-	m.cancel = cancel
-	m.dialErr = ""
-	m.dialOK = false
-	m.askFingerprint = ""
-	m.askAuthorized = ""
-	m.mu.Unlock()
-	m.dialing = true
-	m.connected = false
-	m.Fingerprint = ""
-	m.Grid = nil
-	m.Screen = ""
-	m.Status = "正在连接"
+	s.cancel = cancel
+	s.dialErr = ""
+	s.dialOK = false
+	s.askFingerprint = ""
+	s.askAuthorized = ""
+	s.mu.Unlock()
+	s.dialing = true
+	s.connected = false
+	s.Fingerprint = ""
+	s.Grid = nil
+	s.Screen = ""
+	s.Status = "正在连接"
+	m.bindFocus()
 	go func() {
 		defer func() {
 			if recovered := recover(); recovered != nil {
-				m.publishDialErr(gen, fmt.Errorf("连接中断: %v", recovered), password)
+				m.publishConnErr(s, gen, fmt.Errorf("连接中断: %v", recovered), password)
 			}
 		}()
-		m.dial(ctx, gen, host, password, cols, rows)
+		m.dialConn(ctx, s, gen, host, password, cols, rows)
 	}()
 }
 
@@ -222,6 +236,24 @@ func (m *Model) confirmHostKey(ctx context.Context, gen int, host store.Host, ke
 }
 
 func (m *Model) acceptHostKey() {
+	if s := m.promptingConn(); s != nil {
+		s.mu.Lock()
+		authorized := s.askAuthorized
+		reply := s.keyReply
+		host := s.host
+		s.keyReply = nil
+		s.askFingerprint = ""
+		s.askAuthorized = ""
+		s.mu.Unlock()
+		if authorized != "" {
+			_ = store.OpenKeys(store.KeysPath(m.path)).Remember(host.Address, host.Port, authorized)
+		}
+		s.Fingerprint = ""
+		s.Status = "正在连接"
+		m.bindFocus()
+		sendReply(reply, nil)
+		return
+	}
 	m.mu.Lock()
 	authorized := m.askAuthorized
 	reply := m.keyReply
@@ -299,6 +331,11 @@ func (m *Model) readLoop(gen int, client *session.Client) {
 func (m *Model) wake() {
 	m.applyFiles()
 	m.applyLoad()
+	m.applyUpdateNotice()
+	for _, s := range m.sessions {
+		m.applyConn(s)
+	}
+	m.bindFocus()
 	m.mu.Lock()
 	data := m.pending
 	m.pending = nil
@@ -431,16 +468,24 @@ func (m *Model) writeLoop(ctx context.Context, client *session.Client, ch <-chan
 }
 
 func (m *Model) writeSession(p []byte) {
-	if len(p) == 0 || !m.connected {
+	if len(p) == 0 {
 		return
 	}
-	buf := append([]byte(nil), p...)
-	m.mu.Lock()
-	ch := m.writeCh
-	m.mu.Unlock()
+	var ch chan []byte
+	if s := m.focusedConn(); s != nil {
+		s.mu.Lock()
+		if s.connected {
+			ch = s.writeCh
+		}
+		s.mu.Unlock()
+	}
+	if ch == nil && m.connected {
+		ch = m.writeCh
+	}
 	if ch == nil {
 		return
 	}
+	buf := append([]byte(nil), p...)
 	select {
 	case ch <- buf:
 	default:
@@ -471,7 +516,11 @@ func (m *Model) noteResize() {
 }
 
 func (m *Model) onKey(event vivaui.KeyEvent) vivaui.EventResult {
-	if m.connected && event.Target == terminalID && !event.Release {
+	if idx := m.paneIndex(event.Target); idx >= 0 {
+		m.focus = idx
+		m.bindFocus()
+	}
+	if m.connected && (event.Target == terminalID || event.Target == paneTermID(m.focus)) && !event.Release {
 		if seq := keySequence(event); len(seq) > 0 {
 			m.writeSession(seq)
 			return vivaui.EventResult{Handled: true}
@@ -489,8 +538,10 @@ func (m *Model) onShortcut(event vivaui.KeyEvent) vivaui.EventResult {
 }
 
 func (m *Model) onTerminalText(event app.TextEvent) (app.TextState, error) {
-	if !m.connected {
-		return app.TextState{}, nil
+	if s := m.focusedConn(); s == nil || !s.connected {
+		if !m.connected {
+			return app.TextState{}, nil
+		}
 	}
 	redraw := false
 	switch event.Kind {
