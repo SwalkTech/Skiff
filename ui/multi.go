@@ -386,7 +386,7 @@ func (m *Model) publishConnErr(s *conn, gen int, err error, secret string) {
 	if s == nil || err == nil {
 		return
 	}
-	msg := strings.ReplaceAll(err.Error(), secret, "******")
+	msg := redactSecret(err.Error(), secret)
 	s.mu.Lock()
 	if s.generation != gen {
 		s.mu.Unlock()

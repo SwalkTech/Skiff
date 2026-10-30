@@ -291,11 +291,19 @@ func sendReply(reply chan error, err error) {
 	}
 }
 
+// redactSecret 只在口令非空时替换。空字符串不能传给 ReplaceAll，否则会插进每个字符之间。
+func redactSecret(message, secret string) string {
+	if secret == "" {
+		return message
+	}
+	return strings.ReplaceAll(message, secret, "******")
+}
+
 func (m *Model) publishDialErr(gen int, err error, secret string) {
 	if err == nil {
 		return
 	}
-	msg := strings.ReplaceAll(err.Error(), secret, "******")
+	msg := redactSecret(err.Error(), secret)
 	m.mu.Lock()
 	if m.generation != gen {
 		m.mu.Unlock()
