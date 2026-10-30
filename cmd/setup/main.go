@@ -1,18 +1,19 @@
 package main
 
 import (
-	_ "embed"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 )
 
-//go:embed Skiff.exe
-var payload []byte
-
 func main() {
+	if len(payload) == 0 {
+		alert("安装失败", "这个安装器没有包含 Skiff.exe。\n请使用带 installer 标签的发布构建。")
+		return
+	}
 	dir, err := installDir()
 	if err != nil {
 		alert("安装失败", err.Error())
@@ -94,7 +95,7 @@ func desktopDir() (string, error) {
 }
 
 func psQuote(value string) string {
-	return "'" + value + "'"
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 func alert(title, text string) {
