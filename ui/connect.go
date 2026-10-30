@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/SwalkTech/Skiff/session"
 	"github.com/SwalkTech/Skiff/store"
@@ -129,6 +130,8 @@ func (m *Model) connectSelected() {
 	m.dialing = true
 	m.connected = false
 	m.Fingerprint = ""
+	m.Grid = nil
+	m.Screen = ""
 	m.Status = "正在连接"
 	go func() {
 		defer func() {
@@ -175,14 +178,19 @@ func (m *Model) dial(ctx context.Context, gen int, host store.Host, password str
 		m.publishDialErr(gen, err, password)
 		return
 	}
-	go m.readLoop(gen, client)
+	ch := make(chan []byte, 64)
 	m.mu.Lock()
 	if m.generation != gen {
 		m.mu.Unlock()
+		client.Close()
 		return
 	}
+	m.writeCh = ch
 	m.dialOK = true
 	m.mu.Unlock()
+	go m.writeLoop(ctx, client, ch)
+	go m.readLoop(gen, client)
+	go m.watchLoad(ctx, gen)
 	m.wakeUp()
 }
 
@@ -290,6 +298,7 @@ func (m *Model) readLoop(gen int, client *session.Client) {
 
 func (m *Model) wake() {
 	m.applyFiles()
+	m.applyLoad()
 	m.mu.Lock()
 	data := m.pending
 	m.pending = nil
@@ -308,6 +317,14 @@ func (m *Model) wake() {
 	}
 	if m.Grid == nil && (len(data) > 0 || connected) {
 		m.Grid = term.New(80, 24)
+	}
+	if len(data) > 0 {
+		m.altScreen = altScreenAfter(data, m.altScreen)
+		if m.altScreen {
+			m.pendingEcho = nil
+		} else {
+			data, m.pendingEcho = consumeEcho(data, m.pendingEcho)
+		}
 	}
 	if len(data) > 0 && m.Grid != nil {
 		m.Grid.Write(data)
@@ -355,6 +372,7 @@ func (m *Model) disconnect() {
 	m.dialErr = ""
 	m.dialOK = false
 	m.readErr = nil
+	m.writeCh = nil
 	m.mu.Unlock()
 	if cancel != nil {
 		cancel()
@@ -368,10 +386,48 @@ func (m *Model) disconnect() {
 	m.dialing = false
 	m.Fingerprint = ""
 	m.Status = "未连接"
+	m.load = serverLoad{}
+	m.loadOK = false
+	m.loadNote = ""
+	m.pendingEcho = nil
+	m.altScreen = false
+	m.stableCols = 0
+	m.stableRows = 0
 }
 
 func (m *Model) wakeUp() {
-	m.invalidator.Invalidate()
+	if m.wakePending.CompareAndSwap(false, true) {
+		time.AfterFunc(8*time.Millisecond, func() {
+			m.wakePending.Store(false)
+			m.invalidator.Invalidate()
+		})
+	}
+}
+
+func (m *Model) writeLoop(ctx context.Context, client *session.Client, ch <-chan []byte) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case buf, ok := <-ch:
+			if !ok {
+				return
+			}
+		drain:
+			for {
+				select {
+				case more, ok := <-ch:
+					if !ok {
+						break drain
+					}
+					buf = append(buf, more...)
+				default:
+					break drain
+				}
+			}
+			client.Write(buf)
+		}
+	}
 }
 
 func (m *Model) writeSession(p []byte) {
@@ -380,16 +436,16 @@ func (m *Model) writeSession(p []byte) {
 	}
 	buf := append([]byte(nil), p...)
 	m.mu.Lock()
-	client := m.client
+	ch := m.writeCh
 	m.mu.Unlock()
-	if client == nil {
+	if ch == nil {
 		return
 	}
-	go func() {
-		m.writeMu.Lock()
-		defer m.writeMu.Unlock()
-		client.Write(buf)
-	}()
+	select {
+	case ch <- buf:
+	default:
+		go func() { ch <- buf }()
+	}
 }
 
 func (m *Model) noteResize() {
@@ -436,13 +492,18 @@ func (m *Model) onTerminalText(event app.TextEvent) (app.TextState, error) {
 	if !m.connected {
 		return app.TextState{}, nil
 	}
+	redraw := false
 	switch event.Kind {
 	case app.TextInsert, app.TextPaste:
+		redraw = m.noteLocalEcho(event.Text)
 		m.writeSession([]byte(event.Text))
 	case app.TextCommandEvent:
+		if event.Command == app.TextDeleteBackward {
+			redraw = m.popLocalEcho()
+		}
 		m.writeSession(commandBytes(event.Command))
 	}
-	return app.TextState{}, nil
+	return app.TextState{Redraw: redraw}, nil
 }
 
 func keySequence(event vivaui.KeyEvent) []byte {

@@ -165,6 +165,23 @@ func (c *Client) Write(p []byte) (int, error) {
 	return stdin.Write(p)
 }
 
+// Output 在同一条 SSH 连接上执行一条命令并返回标准输出。它不占用已经打开的 PTY。
+func (c *Client) Output(command string) ([]byte, error) {
+	c.mu.Lock()
+	if c.closed || c.raw == nil {
+		c.mu.Unlock()
+		return nil, ErrClosed
+	}
+	raw := c.raw
+	c.mu.Unlock()
+	session, err := raw.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer session.Close()
+	return session.Output(command)
+}
+
 // Conn 返回底层 SSH 连接，供 SFTP 等子系统复用。会话关闭后返回 ErrClosed。
 func (c *Client) Conn() (*ssh.Client, error) {
 	c.mu.Lock()

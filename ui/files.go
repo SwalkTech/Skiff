@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/sftp"
 	"github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/flex"
-	vivaui "github.com/vivaui/viva/ui"
 )
 
 type remoteFile struct {
@@ -29,7 +28,7 @@ type fileResult struct {
 	err   string
 }
 
-func (m *Model) paintFiles(frame *flex.Frame, fg vivaui.Color) {
+func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
 	frame.Row().Gap(8).Children(func() {
 		if frame.Button(upID, "上级").Outline().Small().Clicked() {
 			m.fileUp()
@@ -51,17 +50,17 @@ func (m *Model) paintFiles(frame *flex.Frame, fg vivaui.Color) {
 	if dir == "" {
 		dir = "远程目录"
 	}
-	frame.Text(dir).Color(fg)
+	frame.Text(dir).Color(ink.ink)
 	if note := strings.TrimSpace(m.fileNote); note != "" {
-		frame.Text(note).Color(vivaui.RGB(160, 168, 176))
+		frame.Text(note).Color(ink.muted)
 	}
 	frame.ScrollArea(fileListID).Grow(1).Gap(4).Children(func() {
 		if !m.connected {
-			frame.Text("请先连接").Color(vivaui.RGB(160, 168, 176))
+			frame.Text("请先连接").Color(ink.muted)
 			return
 		}
 		if len(m.files) == 0 {
-			frame.Text("这个目录是空的").Color(vivaui.RGB(160, 168, 176))
+			frame.Text("这个目录是空的").Color(ink.muted)
 			return
 		}
 		for i, file := range m.files {
@@ -70,19 +69,19 @@ func (m *Model) paintFiles(frame *flex.Frame, fg vivaui.Color) {
 			if file.Dir {
 				label += "/"
 			}
-			row := frame.Row().FillWidth().Pad(8).Gap(12).Radius(8)
+			row := frame.Row().FillWidth().Pad(8).Gap(12).Radius(8).HoverBackground(ink.elevated)
 			if selected {
-				row.Background(vivaui.RGB(28, 36, 48))
+				row.Background(ink.chrome)
 			}
 			row.Hit(fileRows.At(i), file.Name)
 			if row.Children(func() {
-				name := frame.Text(label).Color(fg)
+				name := frame.Text(label).Color(ink.ink)
 				if selected || file.Dir {
 					name.Bold()
 				}
 				frame.Spacer()
 				if !file.Dir {
-					frame.Text(formatSize(file.Size)).Color(vivaui.RGB(140, 148, 156))
+					frame.Text(formatSize(file.Size)).Color(ink.muted)
 				}
 			}).Clicked() {
 				if file.Dir && m.filePick == i {
