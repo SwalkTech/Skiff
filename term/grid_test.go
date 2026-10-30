@@ -19,14 +19,24 @@ func TestWritePrintableAndNewlines(t *testing.T) {
 	}
 }
 
-func TestBackspaceClearsPreviousCell(t *testing.T) {
+func TestBackspaceMovesCursorWithoutErasing(t *testing.T) {
 	g := New(4, 1)
 	g.Write([]byte("ab\b"))
-	if got := g.Row(0); got != "a" {
+	if got := g.Row(0); got != "ab" {
 		t.Fatalf("退格后 = %q", got)
 	}
 	if x, _ := g.Cursor(); x != 1 {
 		t.Fatalf("退格后光标列 = %d", x)
+	}
+}
+
+func TestWriteKeepsSplitUTF8(t *testing.T) {
+	text := []byte("中")
+	g := New(4, 1)
+	g.Write(text[:2])
+	g.Write(text[2:])
+	if got := g.Row(0); got != "中" {
+		t.Fatalf("分片后 = %q", got)
 	}
 }
 

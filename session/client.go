@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -52,9 +53,23 @@ func Dial(ctx context.Context, address string, cfg Config) (*Client, error) {
 	}
 	if cfg.Password != nil {
 		sshCfg.Auth = append(sshCfg.Auth, ssh.PasswordCallback(cfg.Password))
+		sshCfg.Auth = append(sshCfg.Auth, ssh.KeyboardInteractive(func(_ string, _ string, questions []string, _ []bool) ([]string, error) {
+			if len(questions) == 0 {
+				return nil, nil
+			}
+			password, err := cfg.Password()
+			if err != nil {
+				return nil, err
+			}
+			answers := make([]string, len(questions))
+			for i := range answers {
+				answers[i] = password
+			}
+			return answers, nil
+		}))
 	}
 
-	dialer := net.Dialer{}
+	dialer := net.Dialer{Timeout: 15 * time.Second}
 	netConn, err := dialer.DialContext(ctx, "tcp", address)
 	if err != nil {
 		return nil, err
@@ -148,6 +163,16 @@ func (c *Client) Write(p []byte) (int, error) {
 	stdin := c.stdin
 	c.mu.Unlock()
 	return stdin.Write(p)
+}
+
+// Conn 返回底层 SSH 连接，供 SFTP 等子系统复用。会话关闭后返回 ErrClosed。
+func (c *Client) Conn() (*ssh.Client, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed || c.raw == nil {
+		return nil, ErrClosed
+	}
+	return c.raw, nil
 }
 
 // Close 关闭 PTY 和 SSH 连接。重复关闭不会再次访问通道。

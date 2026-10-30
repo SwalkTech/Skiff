@@ -1,5 +1,5 @@
-// Package ui 绘制主机列表和终端单元格。
+// Package ui 绘制可点击的主机栏和终端区，并在窗口内完成 SSH 登录。
 //
-// 界面把按键、尺寸变化和连接请求交给外部处理，不实现 SSH 握手。后续窗口依赖
-// 固定为已发布的 github.com/vivaui/viva v0.2.0，不使用本地 replace。
+// 口令只留在内存里，不写入主机清单。窗口依赖固定为已发布的
+// github.com/vivaui/viva v0.2.0，不使用本地 replace。
 package ui

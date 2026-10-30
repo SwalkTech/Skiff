@@ -13,10 +13,11 @@ type Grid struct {
 	y    int
 	wrap bool
 
-	state  int
-	params []int
-	value  int
-	has    bool
+	state   int
+	params  []int
+	value   int
+	has     bool
+	partial []byte
 }
 
 const (
@@ -66,7 +67,20 @@ func (g *Grid) Row(y int) string {
 // Write 把终端输出写入网格。它识别可打印字符、回车、换行、退格和清屏。
 func (g *Grid) Write(p []byte) (int, error) {
 	n := len(p)
+	if len(g.partial) > 0 {
+		p = append(append([]byte(nil), g.partial...), p...)
+		g.partial = nil
+	}
 	for len(p) > 0 {
+		if !utf8.FullRune(p) {
+			if len(p) > utf8.UTFMax {
+				g.feed(utf8.RuneError)
+				p = p[1:]
+				continue
+			}
+			g.partial = append([]byte(nil), p...)
+			break
+		}
 		r, size := utf8.DecodeRune(p)
 		p = p[size:]
 		g.feed(r)
@@ -196,7 +210,6 @@ func (g *Grid) backspace() {
 		return
 	}
 	g.x--
-	g.cell[g.y*g.cols+g.x] = 0
 }
 
 func (g *Grid) lineFeed() {
