@@ -254,11 +254,7 @@ func NewConfig(m *Model) app.Config {
 				frame.Text("Skiff").FontSize(18).Bold()
 				frame.Text(target).Muted()
 				frame.Spacer()
-				label := "明亮"
-				if !m.dark {
-					label = "暗黑"
-				}
-				if frame.Button(themeID, label).Ghost().Small().Clicked() {
+				if frame.Button(themeID, themeLabel(m.dark)).Ghost().Small().Clicked() {
 					m.dark = !m.dark
 					m.saveTheme()
 				}
@@ -334,7 +330,7 @@ func NewConfig(m *Model) app.Config {
 							}
 						}
 					})
-					frame.Column().FillWidth().Pad(12).Gap(8).Radius(12).Background(ink.window).Border(1, ink.line).Children(func() {
+					frame.Column().FillWidth().Pad(12).Gap(8).Radius(12).Background(ink.elevated).Border(1, ink.line).Children(func() {
 						frame.Text("会话").Bold()
 						if host, ok := selectedHost(m); ok {
 							frame.Text(host.User + "@" + host.Address).MaxWidth(220).Ellipsis()
@@ -402,7 +398,8 @@ func NewConfig(m *Model) app.Config {
 						frame.Text(sessionHint(m)).Muted()
 					})
 					if prompt := updatePrompt(m); prompt != "" {
-						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Border(1, ink.line).Children(func() {
+						updateBorder, updateWidth := promptBorder(ink, false)
+						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Border(updateWidth, updateBorder).Children(func() {
 							frame.Text(prompt)
 							frame.Row().Gap(8).Children(func() {
 								if !m.updateBusy && frame.Button(updateYesID, "更新").Small().Clicked() {
@@ -415,7 +412,8 @@ func NewConfig(m *Model) app.Config {
 						})
 					}
 					if prompt := fingerprintPrompt(m); prompt != "" {
-						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Border(1, ink.line).Children(func() {
+						hostBorder, hostWidth := promptBorder(ink, true)
+						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Border(hostWidth, hostBorder).Children(func() {
 							frame.Text(prompt)
 							frame.Row().Gap(8).Children(func() {
 								if frame.Button(acceptID, "接受").Small().Clicked() {
@@ -758,6 +756,20 @@ func selectedHost(m *Model) (store.Host, bool) {
 		return store.Host{}, false
 	}
 	return m.Hosts[m.Selected], true
+}
+
+func themeLabel(dark bool) string {
+	if dark {
+		return "暗色"
+	}
+	return "亮色"
+}
+
+func promptBorder(ink skiffPalette, hostKey bool) (vivaui.Color, float32) {
+	if hostKey {
+		return ink.danger, 2
+	}
+	return ink.accent, 1
 }
 
 func hostCardStyle(ink skiffPalette, selected bool) (vivaui.Color, vivaui.Color, float32) {

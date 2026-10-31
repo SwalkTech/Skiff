@@ -61,6 +61,36 @@ func TestLoadDetailOmitsRepeatedCPU(t *testing.T) {
 	}
 }
 
+func TestThemeLabelShowsCurrentTheme(t *testing.T) {
+	if themeLabel(true) != "暗色" || themeLabel(false) != "亮色" {
+		t.Fatal("主题按钮没有显示当前主题")
+	}
+}
+
+func TestFileRowStyleMarksSelection(t *testing.T) {
+	ink := colors(true)
+	_, border, width := fileRowStyle(ink, true)
+	if border != ink.accent || width < 2 {
+		t.Fatal("选中文件没有强调边框")
+	}
+	_, idle, idleWidth := fileRowStyle(ink, false)
+	if idle == ink.accent || idleWidth >= 2 {
+		t.Fatal("未选中文件不该使用强调边框")
+	}
+}
+
+func TestPromptBorderSeparatesHostKey(t *testing.T) {
+	ink := colors(true)
+	host, hostWidth := promptBorder(ink, true)
+	update, updateWidth := promptBorder(ink, false)
+	if host == update || hostWidth <= updateWidth {
+		t.Fatal("主机密钥提示和更新提示边框没有分开")
+	}
+	if host != ink.danger {
+		t.Fatal("主机密钥提示没有使用危险色边框")
+	}
+}
+
 func TestPaneBorderMarksFocus(t *testing.T) {
 	ink := colors(true)
 	color, width := paneBorder(ink, true)

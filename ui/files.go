@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/sftp"
 	"github.com/vivaui/viva/app"
 	"github.com/vivaui/viva/flex"
+	vivaui "github.com/vivaui/viva/ui"
 )
 
 type remoteFile struct {
@@ -28,6 +29,13 @@ type fileResult struct {
 	err   string
 }
 
+func fileRowStyle(ink skiffPalette, selected bool) (vivaui.Color, vivaui.Color, float32) {
+	if selected {
+		return ink.selected, ink.accent, 2
+	}
+	return ink.window, ink.line, 1
+}
+
 func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
 	frame.Row().Gap(8).Children(func() {
 		if frame.Button(upID, "上级").Outline().Small().Clicked() {
@@ -36,12 +44,16 @@ func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
 		if frame.Button(refreshID, "刷新").Outline().Small().Clicked() {
 			m.refreshFiles()
 		}
+		frame.Spacer()
 		if frame.Button(uploadID, "上传").Small().Clicked() {
 			m.uploadFiles()
 		}
+	})
+	frame.Row().Gap(8).Children(func() {
 		if frame.Button(downloadID, "下载").Outline().Small().Clicked() {
 			m.downloadFile()
 		}
+		frame.Spacer()
 		if frame.Button(deleteFileID, "删除").DestructiveOutline().Small().Clicked() {
 			m.deleteFile()
 		}
@@ -69,10 +81,8 @@ func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
 			if file.Dir {
 				label += "/"
 			}
-			row := frame.Row().FillWidth().Pad(8).Gap(12).Radius(8).HoverBackground(ink.elevated)
-			if selected {
-				row.Background(ink.chrome)
-			}
+			bg, border, borderWidth := fileRowStyle(ink, selected)
+			row := frame.Row().FillWidth().Pad(8).Gap(12).Radius(8).Background(bg).Border(borderWidth, border).HoverBackground(ink.elevated)
 			row.Hit(fileRows.At(i), file.Name)
 			if row.Children(func() {
 				name := frame.Text(label).Color(ink.ink)
