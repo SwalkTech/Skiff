@@ -1,6 +1,9 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestHostCardStyleDiffersFromHover(t *testing.T) {
 	ink := colors(true)
@@ -33,6 +36,29 @@ func TestStatusPillTextTruncates(t *testing.T) {
 
 func containsEllipsis(s string) bool {
 	return len(s) > 0 && s[len(s)-3:] == "…" || (len([]rune(s)) > 0 && []rune(s)[len([]rune(s))-1] == '…')
+}
+
+func TestLightTerminalDiffersFromWindow(t *testing.T) {
+	ink := colors(false)
+	if ink.terminal == ink.window || ink.terminal == ink.chrome || ink.terminal == ink.elevated {
+		t.Fatal("浅色终端和窗口或卡片贴在一起")
+	}
+}
+
+func TestTerminalGridSubtractsPaddingOnce(t *testing.T) {
+	cols, rows := terminalGridSize(200, 100, 10, 20)
+	if cols != 16 || rows != 3 {
+		t.Fatalf("格子 = %d x %d，希望 16 x 3", cols, rows)
+	}
+}
+
+func TestLoadDetailOmitsRepeatedCPU(t *testing.T) {
+	lines := loadDetailLines(serverLoad{CPU: 42, MemUsed: 1024, MemTotal: 2048})
+	for _, line := range lines {
+		if strings.Contains(line, "CPU") {
+			t.Fatalf("负载正文重复了标题里的 CPU: %q", line)
+		}
+	}
 }
 
 func TestPaneBorderMarksFocus(t *testing.T) {

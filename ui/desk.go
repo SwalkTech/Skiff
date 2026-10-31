@@ -37,7 +37,7 @@ func colors(dark bool) skiffPalette {
 			chrome:   vivaui.RGB(255, 255, 255),
 			elevated: vivaui.RGB(232, 236, 244),
 			selected: vivaui.RGB(226, 234, 250),
-			terminal: vivaui.RGB(250, 251, 253),
+			terminal: vivaui.RGB(228, 233, 242),
 			ink:      vivaui.RGB(30, 36, 51),
 			muted:    vivaui.RGB(98, 108, 130),
 			accent:   vivaui.RGB(47, 98, 214),
@@ -811,21 +811,14 @@ func fingerprintPrompt(m *Model) string {
 }
 
 // fitGrid 按等宽字的真实格子和终端内边距计算行列，并通知远端。
-func (m *Model) fitGrid(canvas *vivaui.Canvas, width, height, cellW, cellH float32) {
-	if m == nil || m.Grid == nil {
-		return
-	}
-	if cellW < 1 || cellH < 1 {
-		if canvas != nil {
-			cellW, cellH = canvas.MonoCellSize(terminalFontSize, vivaui.MonoSystem)
-		}
-	}
+func terminalGridSize(width, height, cellW, cellH float32) (int, int) {
 	if cellW < 1 {
-		cellW = terminalFontSize * 0.6
+		cellW = 1
 	}
 	if cellH < 1 {
-		cellH = terminalFontSize * 1.18
+		cellH = 1
 	}
+	// width 和 height 是含内边距的边框盒，只减一次，不能再减。
 	innerW := width - terminalPad*2
 	innerH := height - terminalPad*2
 	if innerW < cellW {
@@ -842,6 +835,25 @@ func (m *Model) fitGrid(canvas *vivaui.Canvas, width, height, cellW, cellH float
 	if rows < 1 {
 		rows = 1
 	}
+	return cols, rows
+}
+
+func (m *Model) fitGrid(canvas *vivaui.Canvas, width, height, cellW, cellH float32) {
+	if m == nil || m.Grid == nil {
+		return
+	}
+	if cellW < 1 || cellH < 1 {
+		if canvas != nil {
+			cellW, cellH = canvas.MonoCellSize(terminalFontSize, vivaui.MonoSystem)
+		}
+	}
+	if cellW < 1 {
+		cellW = terminalFontSize * 0.6
+	}
+	if cellH < 1 {
+		cellH = terminalFontSize * 1.18
+	}
+	cols, rows := terminalGridSize(width, height, cellW, cellH)
 	if m.stableCols > 0 && absInt(cols-m.stableCols) <= 1 && absInt(rows-m.stableRows) <= 1 {
 		return
 	}

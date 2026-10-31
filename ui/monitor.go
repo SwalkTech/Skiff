@@ -216,12 +216,12 @@ func parseLoad(text string, now time.Time, prevCPU cpuSample, prevNet netSample)
 }
 
 func (m *Model) paintLoad(frame *flex.Frame, ink skiffPalette) {
-	frame.Column().FillWidth().Pad(12).Gap(8).Radius(12).Background(ink.window).Border(1, ink.line).Children(func() {
+	frame.Column().FillWidth().Pad(12).Gap(6).Radius(12).Background(ink.elevated).Border(1, ink.line).Children(func() {
 		frame.Row().Items(flex.Center).Children(func() {
 			frame.Text("负载").Bold().Color(ink.ink)
 			frame.Spacer()
 			if m.connected && m.loadOK {
-				frame.Text(fmt.Sprintf("%.0f%%", m.load.CPU)).Color(ink.accent).Bold()
+				frame.Text(fmt.Sprintf("CPU %.0f%%", m.load.CPU)).Color(ink.accent).Bold()
 			}
 		})
 		if !m.connected {
@@ -236,13 +236,20 @@ func (m *Model) paintLoad(frame *flex.Frame, ink skiffPalette) {
 			frame.Text(note).Color(ink.muted)
 			return
 		}
-		frame.Text(fmt.Sprintf("CPU  %.0f%%", m.load.CPU)).Color(ink.ink)
-		frame.Text(fmt.Sprintf("内存  %s / %s", formatBytes(m.load.MemUsed), formatBytes(m.load.MemTotal))).Color(ink.muted)
-		frame.Text(fmt.Sprintf("磁盘  %s / %s", formatBytes(m.load.DiskUsed), formatBytes(m.load.DiskTotal))).Color(ink.muted)
-		frame.Text(fmt.Sprintf("负载  %.2f  %.2f  %.2f", m.load.Load1, m.load.Load5, m.load.Load15)).Color(ink.muted)
-		frame.Text(fmt.Sprintf("↑ %s/s   ↓ %s/s", formatBytes(uint64(m.load.TxRate)), formatBytes(uint64(m.load.RxRate)))).Color(ink.accent)
-		frame.Text("运行  " + formatUptime(m.load.Uptime)).Color(ink.muted)
+		for _, line := range loadDetailLines(m.load) {
+			frame.Text(line).Color(ink.muted)
+		}
 	})
+}
+
+func loadDetailLines(load serverLoad) []string {
+	return []string{
+		fmt.Sprintf("内存  %s / %s", formatBytes(load.MemUsed), formatBytes(load.MemTotal)),
+		fmt.Sprintf("磁盘  %s / %s", formatBytes(load.DiskUsed), formatBytes(load.DiskTotal)),
+		fmt.Sprintf("均值  %.2f  %.2f  %.2f", load.Load1, load.Load5, load.Load15),
+		fmt.Sprintf("流量  ↑ %s/s  ↓ %s/s", formatBytes(uint64(load.TxRate)), formatBytes(uint64(load.RxRate))),
+		"运行  " + formatUptime(load.Uptime),
+	}
 }
 
 func formatBytes(n uint64) string {
