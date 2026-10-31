@@ -26,8 +26,8 @@ const (
 
 // skiffPalette 是窗口、侧栏和终端共用的一套颜色。
 type skiffPalette struct {
-	window, chrome, elevated, terminal        vivaui.Color
-	ink, muted, accent, success, danger, line vivaui.Color
+	window, chrome, elevated, selected, terminal vivaui.Color
+	ink, muted, accent, success, danger, line    vivaui.Color
 }
 
 func colors(dark bool) skiffPalette {
@@ -36,6 +36,7 @@ func colors(dark bool) skiffPalette {
 			window:   vivaui.RGB(244, 246, 251),
 			chrome:   vivaui.RGB(255, 255, 255),
 			elevated: vivaui.RGB(232, 236, 244),
+			selected: vivaui.RGB(226, 234, 250),
 			terminal: vivaui.RGB(250, 251, 253),
 			ink:      vivaui.RGB(30, 36, 51),
 			muted:    vivaui.RGB(98, 108, 130),
@@ -49,6 +50,7 @@ func colors(dark bool) skiffPalette {
 		window:   vivaui.RGB(15, 17, 26),
 		chrome:   vivaui.RGB(22, 25, 37),
 		elevated: vivaui.RGB(36, 41, 59),
+		selected: vivaui.RGB(42, 52, 82),
 		terminal: vivaui.RGB(10, 12, 20),
 		ink:      vivaui.RGB(198, 208, 245),
 		muted:    vivaui.RGB(130, 140, 176),
@@ -261,7 +263,7 @@ func NewConfig(m *Model) app.Config {
 					m.saveTheme()
 				}
 				frame.Row().PadX(12).PadY(6).Radius(999).Background(ink.elevated).Children(func() {
-					frame.Text(statusText(m.Status)).FontSize(13).Color(statusColor(ink, m.Status))
+					frame.Text(statusPillText(m.Status)).FontSize(13).MaxWidth(160).Ellipsis().Color(statusColor(ink, m.Status))
 				})
 			})
 			frame.Row().Fill().Children(func() {
@@ -285,12 +287,8 @@ func NewConfig(m *Model) app.Config {
 						for _, item := range visible {
 							i, host := item.index, item.host
 							selected := i == m.Selected
-							bg := ink.window
-							border := ink.line
-							if selected {
-								bg = ink.elevated
-							}
-							row := frame.Column().FillWidth().Pad(12).Gap(4).Radius(10).Border(1, border).Background(bg).HoverBackground(ink.elevated)
+							bg, border, borderWidth := hostCardStyle(ink, selected)
+							row := frame.Column().FillWidth().Pad(12).Gap(4).Radius(10).Border(borderWidth, border).Background(bg).HoverBackground(ink.elevated)
 							row.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
 							if row.Children(func() {
 								frame.Row().Gap(8).Items(flex.Center).Children(func() {
@@ -305,7 +303,7 @@ func NewConfig(m *Model) app.Config {
 									}
 								})
 								frame.Row().Gap(8).Children(func() {
-									frame.Text(host.Address).MaxWidth(180).Ellipsis().Muted()
+									frame.Text(host.Address).Grow(1).Ellipsis().Muted()
 									if m.hostHasPassword(host) {
 										frame.Text("已记住").Color(ink.accent)
 									}
@@ -760,6 +758,22 @@ func selectedHost(m *Model) (store.Host, bool) {
 		return store.Host{}, false
 	}
 	return m.Hosts[m.Selected], true
+}
+
+func hostCardStyle(ink skiffPalette, selected bool) (vivaui.Color, vivaui.Color, float32) {
+	if selected {
+		return ink.selected, ink.accent, 2
+	}
+	return ink.window, ink.line, 1
+}
+
+func statusPillText(status string) string {
+	text := statusText(status)
+	runes := []rune(text)
+	if len(runes) <= 12 {
+		return text
+	}
+	return string(runes[:12]) + "…"
 }
 
 func statusText(status string) string {

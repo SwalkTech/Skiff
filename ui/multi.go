@@ -599,7 +599,8 @@ func (m *Model) paintPane(frame *flex.Frame, ink skiffPalette, index int, cellW,
 	focused := index == m.focus
 	c := m.connByID(m.panes[index].sessionID)
 	closeRequested := false
-	col := frame.Column().Grow(1).FillHeight().MinWidth(280)
+	border, borderWidth := paneBorder(ink, focused)
+	col := frame.Column().Grow(1).FillHeight().MinWidth(280).Border(borderWidth, border)
 	if col.Children(func() {
 		header := frame.Row().FillWidth().Height(36).PadX(8).Gap(8).Items(flex.Center).Background(ink.chrome)
 		header.Hit(paneFocus.ID(vivaui.Index(index)), "聚焦这一栏")
@@ -658,6 +659,13 @@ func (m *Model) paintPane(frame *flex.Frame, ink skiffPalette, index int, cellW,
 		m.bindFocus()
 	}
 	return closeRequested
+}
+
+func paneBorder(ink skiffPalette, focused bool) (vivaui.Color, float32) {
+	if focused {
+		return ink.accent, 2
+	}
+	return ink.line, 1
 }
 
 func paneChoiceIndex(sessionID int, ids []int) int {

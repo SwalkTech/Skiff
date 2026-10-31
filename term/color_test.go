@@ -25,3 +25,23 @@ func TestSGRKeepsRemoteColors(t *testing.T) {
 		t.Fatalf("真彩色没有保留: %#v", runs)
 	}
 }
+
+func TestLineRunsCursorDoesNotShiftText(t *testing.T) {
+	g := New(8, 1)
+	g.Write([]byte("abcd\x1b[2G"))
+	runs := g.LineRuns(0)
+	var got string
+	var bold bool
+	for _, run := range runs {
+		got += run.Text
+		if run.Text == "b" && run.Bold {
+			bold = true
+		}
+	}
+	if got != "abcd" {
+		t.Fatalf("光标把行挤偏了: %q", got)
+	}
+	if !bold {
+		t.Fatal("光标没有落在当前字符上")
+	}
+}

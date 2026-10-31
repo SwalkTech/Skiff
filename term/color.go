@@ -130,7 +130,7 @@ var ansi16 = [16][3]uint8{
 	{255, 255, 255},
 }
 
-// LineRuns 返回一行的颜色分段，并在光标列插入光标标记。
+// LineRuns 返回一行的颜色分段。光标落在已有字符上时加粗该字符，空格才显示光标条，不再把后续文字挤开。
 func (g *Grid) LineRuns(y int) []Run {
 	if g == nil || y < 0 || y >= g.rows {
 		return nil
@@ -158,10 +158,6 @@ func (g *Grid) LineRuns(y int) []Run {
 		buf = buf[:0]
 	}
 	for x := 0; x < end; x++ {
-		if showCursor && x == cursorX {
-			flush()
-			runs = append(runs, Run{Text: "▍", FG: current.fg, BG: current.bg, Bold: true})
-		}
 		next := style{}
 		if g.attr != nil && x < g.cols {
 			next = g.attr[y*g.cols+x]
@@ -172,6 +168,15 @@ func (g *Grid) LineRuns(y int) []Run {
 		}
 		if r == 0 {
 			r = ' '
+		}
+		if showCursor && x == cursorX {
+			flush()
+			mark := "▍"
+			if r != ' ' {
+				mark = string(r)
+			}
+			runs = append(runs, Run{Text: mark, FG: next.fg, BG: next.bg, Bold: true})
+			continue
 		}
 		if len(buf) > 0 && next != current {
 			flush()
