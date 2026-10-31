@@ -337,15 +337,12 @@ func NewConfig(m *Model) app.Config {
 						}
 					})
 					frame.Column().FillWidth().Pad(12).Gap(8).Radius(12).Background(ink.elevated).Border(1, ink.line).Children(func() {
-						frame.Text("会话").Bold()
+						frame.Text("连接").FontSize(13).Color(ink.muted)
 						host, hasHost := selectedHost(m)
-						if hasHost {
-							frame.Text(host.User + "@" + host.Address).MaxWidth(220).Ellipsis()
-							if strings.TrimSpace(host.KeyFile) != "" {
-								frame.Text(filepath.Base(host.KeyFile)).MaxWidth(220).Ellipsis().Muted()
-							}
-						} else {
+						if !hasHost {
 							frame.Text("先选一台主机").Muted()
+						} else if strings.TrimSpace(host.KeyFile) != "" {
+							frame.Text(filepath.Base(host.KeyFile)).MaxWidth(220).Ellipsis().Muted()
 						}
 						frame.Row().Gap(8).Children(func() {
 							if frame.Button(keyPickID, "密钥文件").Outline().Small().Clicked() {

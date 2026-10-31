@@ -218,7 +218,7 @@ func parseLoad(text string, now time.Time, prevCPU cpuSample, prevNet netSample)
 func (m *Model) paintLoad(frame *flex.Frame, ink skiffPalette) {
 	frame.Column().FillWidth().Pad(12).Gap(6).Radius(12).Background(ink.elevated).Border(1, ink.line).Children(func() {
 		frame.Row().Items(flex.Center).Children(func() {
-			frame.Text("负载").Bold().Color(ink.ink)
+			frame.Text("负载").FontSize(13).Color(ink.muted)
 			frame.Spacer()
 			if m.connected && m.loadOK {
 				frame.Text(fmt.Sprintf("CPU %.0f%%", m.load.CPU)).Color(ink.accent).Bold()

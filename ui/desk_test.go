@@ -59,6 +59,9 @@ func TestClickHostSelectsIt(t *testing.T) {
 	if !hasLabel(snapshot, "bob@b.example") {
 		t.Fatal("点击主机后没有显示选中的地址")
 	}
+	if hasExactLabel(snapshot, "bob@b.example") {
+		t.Fatal("会话区又用大号文字重复了主机")
+	}
 	if !hasExactLabel(snapshot, "当前") || !hasExactLabel(snapshot, "bob") {
 		t.Fatal("被点击的主机没有标成当前")
 	}
