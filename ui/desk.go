@@ -26,6 +26,15 @@ const (
 	minWindowWidth   float32 = 800
 	minSidebarWidth  float32 = 240
 	minTerminalWidth float32 = 420
+	// 统一间距规范
+	gapTight float32 = 4
+	gapSmall float32 = 8
+	gapStd   float32 = 12
+	gapLarge float32 = 16
+	// 统一圆角规范
+	radiusSmall float32 = 6
+	radiusStd   float32 = 10
+	radiusLarge float32 = 12
 )
 
 // skiffPalette 是窗口、侧栏和终端共用的一套颜色。
@@ -37,30 +46,30 @@ type skiffPalette struct {
 func colors(dark bool) skiffPalette {
 	if !dark {
 		return skiffPalette{
-			window:   vivaui.RGB(244, 246, 251),
+			window:   vivaui.RGB(248, 249, 252),
 			chrome:   vivaui.RGB(255, 255, 255),
-			elevated: vivaui.RGB(232, 236, 244),
-			selected: vivaui.RGB(226, 234, 250),
+			elevated: vivaui.RGB(236, 241, 250),
+			selected: vivaui.RGB(230, 240, 255),
 			terminal: vivaui.RGB(228, 233, 242),
 			ink:      vivaui.RGB(30, 36, 51),
-			muted:    vivaui.RGB(98, 108, 130),
-			accent:   vivaui.RGB(47, 98, 214),
-			success:  vivaui.RGB(36, 128, 68),
-			danger:   vivaui.RGB(186, 48, 78),
+			muted:    vivaui.RGB(100, 115, 140),
+			accent:   vivaui.RGB(52, 112, 224),
+			success:  vivaui.RGB(40, 140, 75),
+			danger:   vivaui.RGB(200, 50, 85),
 			line:     vivaui.RGB(214, 220, 230),
 		}
 	}
 	return skiffPalette{
-		window:   vivaui.RGB(15, 17, 26),
-		chrome:   vivaui.RGB(22, 25, 37),
-		elevated: vivaui.RGB(36, 41, 59),
+		window:   vivaui.RGB(13, 15, 23),
+		chrome:   vivaui.RGB(20, 23, 35),
+		elevated: vivaui.RGB(35, 40, 60),
 		selected: vivaui.RGB(42, 52, 82),
 		terminal: vivaui.RGB(10, 12, 20),
-		ink:      vivaui.RGB(198, 208, 245),
-		muted:    vivaui.RGB(130, 140, 176),
-		accent:   vivaui.RGB(122, 162, 247),
-		success:  vivaui.RGB(158, 206, 106),
-		danger:   vivaui.RGB(247, 118, 142),
+		ink:      vivaui.RGB(200, 210, 245),
+		muted:    vivaui.RGB(135, 145, 180),
+		accent:   vivaui.RGB(120, 168, 255),
+		success:  vivaui.RGB(165, 210, 100),
+		danger:   vivaui.RGB(245, 115, 145),
 		line:     vivaui.RGB(46, 52, 74),
 	}
 }
@@ -275,7 +284,7 @@ func NewConfig(m *Model) app.Config {
 				})
 			})
 			frame.Row().Fill().Children(func() {
-				frame.Column().Width(m.split.Pos).FillHeight().Background(ink.chrome).Pad(16).Gap(12).Children(func() {
+				frame.Column().Width(m.split.Pos).FillHeight().Background(ink.chrome).Pad(gapLarge).Gap(gapStd).Children(func() {
 					visible := visibleHosts(m)
 					frame.Row().Items(flex.Center).Children(func() {
 						frame.Text("主机").FontSize(15).Bold()
@@ -285,7 +294,7 @@ func NewConfig(m *Model) app.Config {
 							m.toggleNewHost()
 						}
 					})
-					frame.ScrollArea(hostListID).Grow(1).Gap(8).Children(func() {
+					frame.ScrollArea(hostListID).Grow(1).Gap(gapSmall).Children(func() {
 						if len(m.Hosts) == 0 {
 							frame.Text("还没有主机").Muted()
 							frame.Text("点添加，把主机放进这一栏").Muted()
@@ -296,10 +305,10 @@ func NewConfig(m *Model) app.Config {
 							i, host := item.index, item.host
 							selected := i == m.Selected
 							bg := hostCardStyle(ink, selected)
-							row := frame.Column().FillWidth().Pad(12).Gap(4).Radius(12).Background(bg).HoverBackground(ink.elevated)
+							row := frame.Column().FillWidth().Pad(gapStd).Gap(gapTight).Radius(radiusLarge).Background(bg).HoverBackground(ink.elevated)
 							row.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
 							if row.Children(func() {
-								frame.Row().Gap(8).Items(flex.Center).Children(func() {
+								frame.Row().Gap(gapSmall).Items(flex.Center).Children(func() {
 									if selected {
 										frame.Text("当前").Color(ink.accent).Bold()
 									}
@@ -310,7 +319,7 @@ func NewConfig(m *Model) app.Config {
 										user.Bold()
 									}
 								})
-								frame.Row().Gap(8).Children(func() {
+								frame.Row().Gap(gapSmall).Children(func() {
 									frame.Text(host.Address).Grow(1).Ellipsis().Muted()
 									if strings.TrimSpace(host.KeyFile) != "" {
 										frame.Text("密钥").Color(ink.accent).FontSize(12)
@@ -322,7 +331,7 @@ func NewConfig(m *Model) app.Config {
 										frame.Text("在线").Color(ink.success).FontSize(12)
 									}
 								})
-								frame.Row().Gap(8).Children(func() {
+								frame.Row().Gap(gapSmall).Children(func() {
 									if frame.Button(editID, "编辑").Outline().Small().Clicked() {
 										m.startEditHost(i)
 									}
@@ -355,7 +364,7 @@ func NewConfig(m *Model) app.Config {
 							}
 						}
 					})
-					frame.Column().FillWidth().Pad(12).Gap(8).Radius(12).Background(ink.elevated).Children(func() {
+					frame.Column().FillWidth().Pad(gapStd).Gap(gapSmall).Radius(radiusLarge).Background(ink.elevated).Children(func() {
 						frame.Text("连接").FontSize(13).Color(ink.muted)
 						host, hasHost := selectedHost(m)
 						if !hasHost {
@@ -363,7 +372,7 @@ func NewConfig(m *Model) app.Config {
 						} else if strings.TrimSpace(host.KeyFile) != "" {
 							frame.Text(filepath.Base(host.KeyFile)).MaxWidth(220).Ellipsis().Muted()
 						}
-						frame.Row().Gap(8).Children(func() {
+						frame.Row().Gap(gapSmall).Children(func() {
 							if frame.Button(keyPickID, "密钥文件").Outline().Small().Clicked() {
 								m.pickKeyFile()
 							}
@@ -375,7 +384,7 @@ func NewConfig(m *Model) app.Config {
 							frame.Field(&m.address, addressID, "地址", "example.com")
 							frame.Field(&m.user, userID, "用户", "alice")
 							frame.Field(&m.port, portID, "端口", "22")
-							frame.Row().Gap(8).Children(func() {
+							frame.Row().Gap(gapSmall).Children(func() {
 								if m.ShowEditHost {
 									if frame.Button(saveID, "更新").Small().Clicked() {
 										m.saveNewHost()
@@ -413,7 +422,7 @@ func NewConfig(m *Model) app.Config {
 								m.connectSelected()
 							}
 						}
-						frame.Row().Gap(8).Children(func() {
+						frame.Row().Gap(gapSmall).Children(func() {
 							if frame.Button(connectID, m.connectLabel()).FillWidth().Clicked() {
 								m.connectSelected()
 							}
@@ -426,7 +435,7 @@ func NewConfig(m *Model) app.Config {
 				})
 				frame.Splitter(splitID, &m.split).Mins(240, 420)
 				frame.Column().Grow(1).FillHeight().Background(ink.window).Children(func() {
-					frame.Row().FillWidth().Height(44).PadX(16).Pad(12).Gap(12).Items(flex.Center).Background(ink.chrome).Children(func() {
+					frame.Row().FillWidth().Height(44).PadX(16).Pad(gapStd).Gap(gapStd).Items(flex.Center).Background(ink.chrome).Children(func() {
 						view := 0
 						if m.showFiles {
 							view = 1
@@ -449,9 +458,9 @@ func NewConfig(m *Model) app.Config {
 						frame.Text(sessionHint(m)).Muted()
 					})
 					if prompt := updatePrompt(m); prompt != "" {
-						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Children(func() {
+						frame.Column().FillWidth().Pad(gapLarge).Gap(gapSmall).Background(ink.elevated).Children(func() {
 							frame.Text(prompt)
-							frame.Row().Gap(8).Children(func() {
+							frame.Row().Gap(gapSmall).Children(func() {
 								if !m.updateBusy && frame.Button(updateYesID, "更新").Small().Clicked() {
 									m.beginUpdate()
 								}
@@ -462,9 +471,9 @@ func NewConfig(m *Model) app.Config {
 						})
 					}
 					if prompt := fingerprintPrompt(m); prompt != "" {
-						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Children(func() {
+						frame.Column().FillWidth().Pad(gapLarge).Gap(gapSmall).Background(ink.elevated).Children(func() {
 							frame.Text(prompt)
-							frame.Row().Gap(8).Children(func() {
+							frame.Row().Gap(gapSmall).Children(func() {
 								if frame.Button(acceptID, "接受").Small().Clicked() {
 									m.acceptHostKey()
 								}

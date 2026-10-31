@@ -223,7 +223,7 @@ func (m *Model) paintLoad(frame *flex.Frame, ink skiffPalette) {
 	if m == nil || !showLoadPanel(m.connected) {
 		return
 	}
-	frame.Column().FillWidth().Gap(4).Children(func() {
+	frame.Column().FillWidth().Gap(gapTight).Children(func() {
 		frame.Row().Items(flex.Center).Children(func() {
 			frame.Text("负载").FontSize(13).Color(ink.muted)
 			frame.Spacer()

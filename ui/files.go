@@ -37,7 +37,7 @@ func fileRowStyle(ink skiffPalette, selected bool) vivaui.Color {
 }
 
 func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
-	frame.Row().Gap(8).Children(func() {
+	frame.Row().Gap(gapSmall).Children(func() {
 		if frame.Button(upID, "上级").Outline().Small().Clicked() {
 			m.fileUp()
 		}
@@ -49,7 +49,7 @@ func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
 			m.uploadFiles()
 		}
 	})
-	frame.Row().Gap(8).Children(func() {
+	frame.Row().Gap(gapSmall).Children(func() {
 		if frame.Button(downloadID, "下载").Outline().Small().Clicked() {
 			m.downloadFile()
 		}
@@ -66,7 +66,7 @@ func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
 	if note := strings.TrimSpace(m.fileNote); note != "" {
 		frame.Text(note).Color(ink.muted)
 	}
-	frame.ScrollArea(fileListID).Grow(1).Gap(4).Children(func() {
+	frame.ScrollArea(fileListID).Grow(1).Gap(gapTight).Children(func() {
 		if !m.connected {
 			frame.Text("请先连接").Color(ink.muted)
 			return
@@ -82,7 +82,7 @@ func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
 				label += "/"
 			}
 			bg := fileRowStyle(ink, selected)
-			row := frame.Row().FillWidth().Pad(8).Gap(12).Radius(12).Background(bg).HoverBackground(ink.elevated)
+			row := frame.Row().FillWidth().Pad(gapSmall).Gap(gapStd).Radius(radiusLarge).Background(bg).HoverBackground(ink.elevated)
 			row.Hit(fileRows.At(i), file.Name)
 			if row.Children(func() {
 				name := frame.Text(label).Color(ink.ink)

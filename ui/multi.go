@@ -579,7 +579,7 @@ func (m *Model) paintWorkArea(frame *flex.Frame, ink skiffPalette, cellW, cellH 
 	m.ensurePanes()
 	m.bindFocus()
 	closeAt := -1
-	frame.Row().Grow(1).FillWidth().Gap(8).Children(func() {
+	frame.Row().Grow(1).FillWidth().Gap(gapSmall).Children(func() {
 		n := len(m.panes)
 		for i := 0; i < n; i++ {
 			if m.paintPane(frame, ink, i, cellW, cellH, target) {
@@ -602,7 +602,7 @@ func (m *Model) paintPane(frame *flex.Frame, ink skiffPalette, index int, cellW,
 	border := paneBorder(ink, focused)
 	col := frame.Column().Grow(1).FillHeight().MinWidth(280).Background(border)
 	if col.Children(func() {
-		header := frame.Row().FillWidth().Height(36).PadX(8).Gap(8).Items(flex.Center).Background(ink.chrome)
+		header := frame.Row().FillWidth().Height(36).PadX(8).Gap(gapSmall).Items(flex.Center).Background(ink.chrome)
 		header.Hit(paneFocus.ID(vivaui.Index(index)), "聚焦这一栏")
 		if header.Children(func() {
 			labels, ids := m.sessionChoices()
