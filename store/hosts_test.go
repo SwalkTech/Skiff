@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -47,6 +48,38 @@ func TestRejectInvalidAndDuplicate(t *testing.T) {
 	}
 	if err := catalog.Add(Host{Address: " example.com ", User: " alice ", Port: 22}); err != ErrExists {
 		t.Fatalf("重复主机错误 = %v", err)
+	}
+}
+
+func TestKeyFileStoresPathOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hosts.json")
+	catalog := Open(path)
+	if err := catalog.Add(Host{Address: "example.com", User: "alice", Port: 22, KeyFile: " C:\\keys\\id_rsa "}); err != nil {
+		t.Fatalf("添加主机失败: %v", err)
+	}
+	hosts, err := catalog.List()
+	if err != nil {
+		t.Fatalf("列出主机失败: %v", err)
+	}
+	if hosts[0].KeyFile != "C:\\keys\\id_rsa" {
+		t.Fatalf("私钥路径 = %q", hosts[0].KeyFile)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("读取清单失败: %v", err)
+	}
+	if strings.Contains(string(raw), "PRIVATE KEY") || strings.Contains(string(raw), "password") {
+		t.Fatal("主机清单写入了私钥或口令")
+	}
+	if err := catalog.SetKeyFile("example.com", "alice", 22, ""); err != nil {
+		t.Fatalf("清除私钥路径失败: %v", err)
+	}
+	hosts, err = catalog.List()
+	if err != nil {
+		t.Fatalf("重新列出失败: %v", err)
+	}
+	if hosts[0].KeyFile != "" {
+		t.Fatalf("清除后路径 = %q", hosts[0].KeyFile)
 	}
 }
 

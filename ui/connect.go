@@ -128,13 +128,21 @@ func (m *Model) connectSelected() {
 		m.disconnectConn(s)
 		return
 	}
-	password := m.passwordFor(host)
-	if password == "" {
-		m.Status = "请输入口令"
-		return
+	keyFile := strings.TrimSpace(host.KeyFile)
+	password := ""
+	if keyFile == "" {
+		password = m.passwordFor(host)
+		if password == "" {
+			m.Status = "请输入口令或选择密钥文件"
+			return
+		}
+	} else {
+		password = strings.TrimSpace(m.password.Text())
 	}
 	s := m.openConn(host)
-	s.secret = password
+	if keyFile == "" {
+		s.secret = password
+	}
 	m.assignFocused(s)
 	cols, rows := 80, 24
 	if m.Grid != nil {
@@ -173,14 +181,14 @@ func (m *Model) connectSelected() {
 func (m *Model) dial(ctx context.Context, gen int, host store.Host, password string, cols, rows int) {
 	address := net.JoinHostPort(host.Address, strconv.Itoa(host.Port))
 	keys := store.OpenKeys(store.KeysPath(m.path))
+	signers, pass := authCallbacks(host, password)
 	client, err := session.Dial(ctx, address, session.Config{
 		User: host.User,
 		HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
 			return m.confirmHostKey(ctx, gen, host, keys, key)
 		},
-		Password: func() (string, error) {
-			return password, nil
-		},
+		Password: pass,
+		Signers:  signers,
 	})
 	if err != nil {
 		m.publishDialErr(gen, err, password)
@@ -320,6 +328,21 @@ func sendReply(reply chan error, err error) {
 }
 
 // redactSecret 只在口令非空时替换。空字符串不能传给 ReplaceAll，否则会插进每个字符之间。
+func authCallbacks(host store.Host, secret string) (func() ([]ssh.Signer, error), func() (string, error)) {
+	if path := strings.TrimSpace(host.KeyFile); path != "" {
+		phrase := secret
+		return func() ([]ssh.Signer, error) {
+			return session.SignersFromFile(path, phrase)
+		}, nil
+	}
+	if strings.TrimSpace(secret) == "" {
+		return nil, nil
+	}
+	return nil, func() (string, error) {
+		return secret, nil
+	}
+}
+
 func redactSecret(message, secret string) string {
 	if secret == "" {
 		return message

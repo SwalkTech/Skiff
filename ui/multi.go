@@ -423,14 +423,14 @@ func (m *Model) confirmConnKey(ctx context.Context, s *conn, gen int, host store
 func (m *Model) dialConn(ctx context.Context, s *conn, gen int, host store.Host, password string, cols, rows int) {
 	address := net.JoinHostPort(host.Address, strconv.Itoa(host.Port))
 	keys := store.OpenKeys(store.KeysPath(m.path))
+	signers, pass := authCallbacks(host, password)
 	client, err := session.Dial(ctx, address, session.Config{
 		User: host.User,
 		HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
 			return m.confirmConnKey(ctx, s, gen, host, keys, key)
 		},
-		Password: func() (string, error) {
-			return password, nil
-		},
+		Password: pass,
+		Signers:  signers,
 	})
 	if err != nil {
 		m.publishConnErr(s, gen, err, password)

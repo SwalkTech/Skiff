@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/SwalkTech/Skiff/store"
 )
 
 func TestHostCardStyleDiffersFromHover(t *testing.T) {
@@ -58,6 +60,18 @@ func TestLoadDetailOmitsRepeatedCPU(t *testing.T) {
 		if strings.Contains(line, "CPU") {
 			t.Fatalf("负载正文重复了标题里的 CPU: %q", line)
 		}
+	}
+}
+
+func TestAuthCallbacksPreferKeyFile(t *testing.T) {
+	host := store.Host{Address: "example.com", User: "alice", Port: 22, KeyFile: "id_rsa"}
+	signers, pass := authCallbacks(host, "phrase")
+	if signers == nil || pass != nil {
+		t.Fatal("选择了密钥文件时仍走口令登录")
+	}
+	signers, pass = authCallbacks(store.Host{Address: "example.com", User: "alice", Port: 22}, "secret")
+	if signers != nil || pass == nil {
+		t.Fatal("没有密钥文件时没有走口令登录")
 	}
 }
 

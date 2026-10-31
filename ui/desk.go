@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -76,6 +77,8 @@ var (
 	userID           = tree.ID(page, "user")
 	portID           = tree.ID(page, "port")
 	passwordID       = tree.ID(page, "password")
+	keyPickID        = tree.ID(page, "key-pick")
+	keyClearID       = tree.ID(page, "key-clear")
 	changePasswordID = tree.ID(page, "change-password")
 	acceptID         = tree.ID(page, "accept")
 	rejectID         = tree.ID(page, "reject")
@@ -300,6 +303,9 @@ func NewConfig(m *Model) app.Config {
 								})
 								frame.Row().Gap(8).Children(func() {
 									frame.Text(host.Address).Grow(1).Ellipsis().Muted()
+									if strings.TrimSpace(host.KeyFile) != "" {
+										frame.Text("密钥").Color(ink.accent)
+									}
 									if m.hostHasPassword(host) {
 										frame.Text("已记住").Color(ink.accent)
 									}
@@ -332,11 +338,23 @@ func NewConfig(m *Model) app.Config {
 					})
 					frame.Column().FillWidth().Pad(12).Gap(8).Radius(12).Background(ink.elevated).Border(1, ink.line).Children(func() {
 						frame.Text("会话").Bold()
-						if host, ok := selectedHost(m); ok {
+						host, hasHost := selectedHost(m)
+						if hasHost {
 							frame.Text(host.User + "@" + host.Address).MaxWidth(220).Ellipsis()
+							if strings.TrimSpace(host.KeyFile) != "" {
+								frame.Text(filepath.Base(host.KeyFile)).MaxWidth(220).Ellipsis().Muted()
+							}
 						} else {
 							frame.Text("先选一台主机").Muted()
 						}
+						frame.Row().Gap(8).Children(func() {
+							if frame.Button(keyPickID, "密钥文件").Outline().Small().Clicked() {
+								m.pickKeyFile()
+							}
+							if hasHost && strings.TrimSpace(host.KeyFile) != "" && frame.Button(keyClearID, "清除").Ghost().Small().Clicked() {
+								m.clearKeyFile()
+							}
+						})
 						if m.ShowNewHost {
 							frame.Field(&m.address, addressID, "地址", "example.com")
 							frame.Field(&m.user, userID, "用户", "alice")
@@ -351,7 +369,12 @@ func NewConfig(m *Model) app.Config {
 							})
 						}
 						if !m.connected {
-							if m.remembered && !m.changePassword {
+							keyChosen := hasHost && strings.TrimSpace(host.KeyFile) != ""
+							if keyChosen {
+								if frame.Field(&m.password, passwordID, "密钥口令", "未加密可留空").Submitted() {
+									m.connectSelected()
+								}
+							} else if m.remembered && !m.changePassword {
 								frame.Text("口令已记住，可直接连接").Muted()
 								if frame.Button(changePasswordID, "更改口令").Ghost().Small().Clicked() {
 									m.changePassword = true
@@ -539,6 +562,60 @@ func Run(m *Model) error {
 	}
 	var canvas vivaui.Canvas
 	return app.RunCanvas(NewConfig(m), &canvas)
+}
+
+func (m *Model) pickKeyFile() {
+	host, ok := selectedHost(m)
+	if !ok {
+		m.Status = "请先选择一台主机"
+		return
+	}
+	paths, err := app.OpenFiles(app.OpenFileOptions{Title: "选择私钥文件"})
+	if err != nil {
+		if !errors.Is(err, app.ErrCanceled) {
+			m.Status = "没有打开密钥文件"
+		}
+		return
+	}
+	if len(paths) == 0 {
+		return
+	}
+	m.setHostKeyFile(host, paths[0])
+}
+
+func (m *Model) clearKeyFile() {
+	host, ok := selectedHost(m)
+	if !ok {
+		return
+	}
+	m.setHostKeyFile(host, "")
+}
+
+func (m *Model) setHostKeyFile(host store.Host, path string) {
+	path = strings.TrimSpace(path)
+	if m.path != "" {
+		if err := store.Open(m.path).SetKeyFile(host.Address, host.User, host.Port, path); err != nil {
+			m.Status = err.Error()
+			return
+		}
+		hosts, err := store.Open(m.path).List()
+		if err != nil {
+			m.Status = err.Error()
+			return
+		}
+		m.Hosts = hosts
+	} else {
+		for i := range m.Hosts {
+			if m.Hosts[i].Address == host.Address && m.Hosts[i].User == host.User && m.Hosts[i].Port == host.Port {
+				m.Hosts[i].KeyFile = path
+			}
+		}
+	}
+	if path == "" {
+		m.Status = "已清除密钥文件"
+		return
+	}
+	m.Status = "已选择密钥文件"
 }
 
 func (m *Model) toggleNewHost() {

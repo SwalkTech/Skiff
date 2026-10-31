@@ -13,11 +13,12 @@ var ErrInvalidHost = errors.New("主机缺少地址、用户或 1 到 65535 之�
 // ErrExists 表示相同地址、用户和端口的主机已经存在。
 var ErrExists = errors.New("主机已存在")
 
-// Host 是一台可连接的 SSH 主机。口令不属于这里。
+// Host 是一台可连接的 SSH 主机。口令和私钥内容不属于这里。KeyFile 只保存私钥文件路径。
 type Host struct {
 	Address string `json:"address"`
 	User    string `json:"user"`
 	Port    int    `json:"port"`
+	KeyFile string `json:"keyFile,omitempty"`
 }
 
 // File 把主机清单保存为 JSON 文件。文件内容不是机密。
@@ -45,6 +46,7 @@ func (f *File) List() ([]Host, error) {
 func (f *File) Add(host Host) error {
 	host.Address = strings.TrimSpace(host.Address)
 	host.User = strings.TrimSpace(host.User)
+	host.KeyFile = strings.TrimSpace(host.KeyFile)
 	if host.Address == "" || host.User == "" || host.Port < 1 || host.Port > 65535 {
 		return ErrInvalidHost
 	}
@@ -78,6 +80,27 @@ func (f *File) Delete(address, user string, port int) error {
 		return nil
 	}
 	return f.save(kept)
+}
+
+// SetKeyFile 更新一台已有主机的私钥路径。空路径表示清除。不会写入私钥内容。
+func (f *File) SetKeyFile(address, user string, port int, keyFile string) error {
+	hosts, err := f.load()
+	if err != nil {
+		return err
+	}
+	target := Host{Address: strings.TrimSpace(address), User: strings.TrimSpace(user), Port: port}
+	found := false
+	for i := range hosts {
+		if sameHost(hosts[i], target) {
+			hosts[i].KeyFile = strings.TrimSpace(keyFile)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ErrInvalidHost
+	}
+	return f.save(hosts)
 }
 
 func (f *File) load() ([]Host, error) {
