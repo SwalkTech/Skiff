@@ -68,6 +68,7 @@ var (
 	hostListID       = tree.ID(page, "hosts")
 	hostRows         = tree.Sub(page, tree.Name("host-rows"))
 	addID            = tree.ID(page, "add")
+	editID           = tree.ID(page, "edit")
 	deleteID         = tree.ID(page, "delete")
 	connectID        = tree.ID(page, "connect")
 	saveID           = tree.ID(page, "save")
@@ -116,7 +117,11 @@ type Model struct {
 	// Filter 按用户或地址筛选主机。为空表示显示全部。
 	Filter string
 	// ShowNewHost 为真时显示新增主机表单。
-	ShowNewHost     bool
+	ShowNewHost bool
+	// ShowEditHost 为真时显示编辑主机表单。
+	ShowEditHost bool
+	// EditingIndex 是正在编辑的主机在 Hosts 中的下标。
+	EditingIndex    int
 	view            flex.View
 	split           flex.SplitterState
 	path            string
@@ -313,6 +318,16 @@ func NewConfig(m *Model) app.Config {
 										frame.Text("在线").Color(ink.success)
 									}
 								})
+								frame.Row().Gap(8).Children(func() {
+									if frame.Button(editID, "编辑").Outline().Small().Clicked() {
+										m.startEditHost(i)
+									}
+									frame.Spacer()
+									if frame.Button(deleteID, "删除").DestructiveOutline().Small().Clicked() {
+										m.Selected = i
+										m.deleteSelected()
+									}
+								})
 							}).Clicked() {
 								if live := m.sessionFor(host); live != nil && (live.connected || live.dialing) {
 									m.Selected = i
@@ -352,16 +367,28 @@ func NewConfig(m *Model) app.Config {
 								m.clearKeyFile()
 							}
 						})
-						if m.ShowNewHost {
+						if m.ShowNewHost || m.ShowEditHost {
 							frame.Field(&m.address, addressID, "地址", "example.com")
 							frame.Field(&m.user, userID, "用户", "alice")
 							frame.Field(&m.port, portID, "端口", "22")
 							frame.Row().Gap(8).Children(func() {
-								if frame.Button(saveID, "保存").Small().Clicked() {
-									m.saveNewHost()
-								}
-								if frame.Button(cancelID, "取消").Outline().Small().Clicked() {
-									m.ShowNewHost = false
+								if m.ShowEditHost {
+									if frame.Button(saveID, "更新").Small().Clicked() {
+										m.saveNewHost()
+									}
+									if frame.Button(cancelID, "取消").Outline().Small().Clicked() {
+										m.cancelEdit()
+									}
+								} else {
+									if frame.Button(saveID, "保存").Small().Clicked() {
+										m.saveNewHost()
+									}
+									if frame.Button(cancelID, "取消").Outline().Small().Clicked() {
+										m.ShowNewHost = false
+										m.address.SetText("")
+										m.user.SetText("")
+										m.port.SetText("")
+									}
 								}
 							})
 						}
@@ -620,6 +647,26 @@ func (m *Model) toggleNewHost() {
 	}
 }
 
+func (m *Model) startEditHost(index int) {
+	if index < 0 || index >= len(m.Hosts) {
+		return
+	}
+	m.ShowEditHost = true
+	m.EditingIndex = index
+	host := m.Hosts[index]
+	m.address.SetText(host.Address)
+	m.user.SetText(host.User)
+	m.port.SetText(strconv.Itoa(host.Port))
+}
+
+func (m *Model) cancelEdit() {
+	m.ShowEditHost = false
+	m.EditingIndex = -1
+	m.address.SetText("")
+	m.user.SetText("")
+	m.port.SetText("")
+}
+
 func (m *Model) saveNewHost() {
 	portText := strings.TrimSpace(m.port.Text())
 	if portText == "" {
@@ -639,32 +686,68 @@ func (m *Model) saveNewHost() {
 		m.Status = store.ErrInvalidHost.Error()
 		return
 	}
-	if m.path != "" {
-		if err := store.Open(m.path).Add(host); err != nil {
-			m.Status = err.Error()
-			return
-		}
-		hosts, err := store.Open(m.path).List()
-		if err != nil {
-			m.Status = err.Error()
-			return
-		}
-		m.Hosts = hosts
-	} else {
-		for _, existing := range m.Hosts {
+	if m.ShowEditHost && m.EditingIndex >= 0 && m.EditingIndex < len(m.Hosts) {
+		// 编辑模式：检查是否与其他主机重复
+		original := m.Hosts[m.EditingIndex]
+		for i, existing := range m.Hosts {
+			if i == m.EditingIndex {
+				continue
+			}
 			if existing.Address == host.Address && existing.User == host.User && existing.Port == host.Port {
-				m.Status = store.ErrExists.Error()
+				m.Status = "该主机已存在"
 				return
 			}
 		}
-		m.Hosts = append(m.Hosts, host)
+		if m.path != "" {
+			if err := store.Open(m.path).Delete(original.Address, original.User, original.Port); err != nil {
+				m.Status = err.Error()
+				return
+			}
+			if err := store.Open(m.path).Add(host); err != nil {
+				m.Status = err.Error()
+				return
+			}
+			hosts, err := store.Open(m.path).List()
+			if err != nil {
+				m.Status = err.Error()
+				return
+			}
+			m.Hosts = hosts
+		} else {
+			m.Hosts[m.EditingIndex] = host
+		}
+		m.ShowEditHost = false
+		m.EditingIndex = -1
+		m.Status = "已编辑 " + host.Address
+	} else {
+		// 新增模式
+		if m.path != "" {
+			if err := store.Open(m.path).Add(host); err != nil {
+				m.Status = err.Error()
+				return
+			}
+			hosts, err := store.Open(m.path).List()
+			if err != nil {
+				m.Status = err.Error()
+				return
+			}
+			m.Hosts = hosts
+		} else {
+			for _, existing := range m.Hosts {
+				if existing.Address == host.Address && existing.User == host.User && existing.Port == host.Port {
+					m.Status = store.ErrExists.Error()
+					return
+				}
+			}
+			m.Hosts = append(m.Hosts, host)
+		}
+		m.Selected = len(m.Hosts) - 1
+		m.ShowNewHost = false
+		m.Status = "已添加 " + host.Address
 	}
-	m.Selected = len(m.Hosts) - 1
-	m.ShowNewHost = false
 	m.address.SetText("")
 	m.user.SetText("")
 	m.port.SetText("")
-	m.Status = "已添加 " + host.Address
 }
 
 func (m *Model) deleteSelected() {
