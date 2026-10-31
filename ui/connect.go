@@ -614,9 +614,57 @@ func (m *Model) onKey(event vivaui.KeyEvent) vivaui.EventResult {
 }
 
 func (m *Model) onShortcut(event vivaui.KeyEvent) vivaui.EventResult {
+	// 终端快捷键：Ctrl+C 中断
 	if m.connected && event.Modifiers&vivaui.ModifierControl != 0 && strings.EqualFold(event.Text, "c") {
 		m.writeSession([]byte{3})
 		return vivaui.EventResult{Handled: true}
+	}
+	// UI 快捷键：需要未连接或焦点在主机列表
+	if event.Modifiers&vivaui.ModifierControl != 0 {
+		switch strings.ToUpper(event.Text) {
+		case "N":
+			// Ctrl+N：新增主机
+			m.toggleNewHost()
+			return vivaui.EventResult{Handled: true}
+		case "E":
+			// Ctrl+E：编辑主机
+			if m.Selected >= 0 && m.Selected < len(m.Hosts) {
+				m.startEditHost(m.Selected)
+				return vivaui.EventResult{Handled: true}
+			}
+		case "D":
+			// Ctrl+D：删除主机
+			if m.Selected >= 0 {
+				m.deleteSelected()
+				return vivaui.EventResult{Handled: true}
+			}
+		case "L":
+			// Ctrl+L：清空过滤（切换过滤状态）
+			if m.Filter != "" {
+				m.Filter = ""
+				return vivaui.EventResult{Handled: true}
+			}
+		case "W":
+			// Ctrl+W：断开连接
+			if m.connected {
+				m.disconnect()
+				return vivaui.EventResult{Handled: true}
+			}
+		}
+	}
+	// Tab 快捷键：切换分栏
+	if event.Key == vivaui.KeyTab {
+		if event.Modifiers&vivaui.ModifierControl != 0 {
+			if event.Modifiers&vivaui.ModifierShift != 0 {
+				// Ctrl+Shift+Tab：上一个分栏
+				m.focus = (m.focus - 1 + len(m.panes)) % len(m.panes)
+			} else {
+				// Ctrl+Tab：下一个分栏
+				m.focus = (m.focus + 1) % len(m.panes)
+			}
+			m.bindFocus()
+			return vivaui.EventResult{Handled: true}
+		}
 	}
 	return vivaui.EventResult{}
 }
