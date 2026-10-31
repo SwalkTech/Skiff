@@ -16,7 +16,7 @@ import (
 )
 
 // Version 是当前程序版本。启动后用它和 GitHub 上的最新正式版比较。
-const Version = "0.3.1"
+const Version = "0.3.2"
 
 const updateAsset = "Skiff-Setup.exe"
 
