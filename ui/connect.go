@@ -20,6 +20,31 @@ import (
 
 var errHostKeyRejected = errors.New("主机密钥被拒绝")
 
+// 状态消息常量
+const (
+	statusDisconnected     = "未连接"
+	statusConnecting       = "正在连接"
+	statusConnected        = "已连接"
+	statusDisconnected_net = "已断开"
+	errConnectionFailed    = "连接失败"
+	errAuthRequired        = "请输入口令或选择密钥文件"
+	errNoHostSelected      = "请先选择一台主机"
+	errPortInvalid         = "端口必须是 1 到 65535"
+	errHostInvalid         = "主机地址和用户名不能为空"
+	errHostExists          = "该主机已存在"
+)
+
+func formatConnError(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	if !strings.HasPrefix(msg, "连接失败") && !strings.HasPrefix(msg, "错误") {
+		msg = "连接失败: " + msg
+	}
+	return msg
+}
+
 func (m *Model) hostHasPassword(host store.Host) bool {
 	key := store.PasswordTarget(host.Address, host.User, host.Port)
 	if m.passwordCache == nil {

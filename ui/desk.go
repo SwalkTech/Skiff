@@ -574,6 +574,10 @@ func (m *Model) Fail(reason string) {
 	if reason == "" {
 		reason = "连接失败"
 	}
+	// 规范化错误格式：如果不是已知的特定错误格式，加上前缀
+	if !strings.HasPrefix(reason, "连接") && !strings.HasPrefix(reason, "主机") && !strings.HasPrefix(reason, "密钥") && !strings.HasPrefix(reason, "端口") {
+		reason = "连接失败: " + reason
+	}
 	m.Status = reason
 }
 
@@ -589,13 +593,13 @@ func Run(m *Model) error {
 func (m *Model) pickKeyFile() {
 	host, ok := selectedHost(m)
 	if !ok {
-		m.Status = "请先选择一台主机"
+		m.Status = errNoHostSelected
 		return
 	}
 	paths, err := app.OpenFiles(app.OpenFileOptions{Title: "选择私钥文件"})
 	if err != nil {
 		if !errors.Is(err, app.ErrCanceled) {
-			m.Status = "没有打开密钥文件"
+			m.Status = "取消"
 		}
 		return
 	}
@@ -674,7 +678,7 @@ func (m *Model) saveNewHost() {
 	}
 	port, err := strconv.Atoi(portText)
 	if err != nil || port < 1 || port > 65535 {
-		m.Status = "端口必须是 1 到 65535"
+		m.Status = errPortInvalid
 		return
 	}
 	host := store.Host{
@@ -683,7 +687,7 @@ func (m *Model) saveNewHost() {
 		Port:    port,
 	}
 	if host.Address == "" || host.User == "" {
-		m.Status = store.ErrInvalidHost.Error()
+		m.Status = errHostInvalid
 		return
 	}
 	if m.ShowEditHost && m.EditingIndex >= 0 && m.EditingIndex < len(m.Hosts) {
@@ -694,7 +698,7 @@ func (m *Model) saveNewHost() {
 				continue
 			}
 			if existing.Address == host.Address && existing.User == host.User && existing.Port == host.Port {
-				m.Status = "该主机已存在"
+				m.Status = errHostExists
 				return
 			}
 		}
@@ -753,7 +757,7 @@ func (m *Model) saveNewHost() {
 func (m *Model) deleteSelected() {
 	host, ok := selectedHost(m)
 	if !ok {
-		m.Status = "请先选择一台主机"
+		m.Status = errNoHostSelected
 		return
 	}
 	if m.path != "" {
