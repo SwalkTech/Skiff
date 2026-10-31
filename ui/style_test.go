@@ -9,16 +9,13 @@ import (
 
 func TestHostCardStyleDiffersFromHover(t *testing.T) {
 	ink := colors(true)
-	bg, border, width := hostCardStyle(ink, true)
+	bg := hostCardStyle(ink, true)
 	if bg == ink.elevated {
 		t.Fatal("选中填充和悬停相同")
 	}
-	if border != ink.accent || width < 2 {
-		t.Fatalf("选中边框 = %v 宽度 %v", border, width)
-	}
-	_, idleBorder, idleWidth := hostCardStyle(ink, false)
-	if idleBorder == ink.accent || idleWidth >= 2 {
-		t.Fatal("未选中主机不该使用强调边框")
+	bg = hostCardStyle(ink, false)
+	if bg == ink.accent {
+		t.Fatal("未选中主机不该使用强调背景")
 	}
 }
 
@@ -92,36 +89,36 @@ func TestThemeLabelShowsCurrentTheme(t *testing.T) {
 
 func TestFileRowStyleMarksSelection(t *testing.T) {
 	ink := colors(true)
-	_, border, width := fileRowStyle(ink, true)
-	if border != ink.accent || width < 2 {
-		t.Fatal("选中文件没有强调边框")
+	bg := fileRowStyle(ink, true)
+	if bg == ink.window {
+		t.Fatal("选中文件不应该用窗口底色")
 	}
-	_, idle, idleWidth := fileRowStyle(ink, false)
-	if idle == ink.accent || idleWidth >= 2 {
-		t.Fatal("未选中文件不该使用强调边框")
+	bg = fileRowStyle(ink, false)
+	if bg != ink.window {
+		t.Fatal("未选中文件应该用窗口底色")
 	}
 }
 
 func TestPromptBorderSeparatesHostKey(t *testing.T) {
 	ink := colors(true)
-	host, hostWidth := promptBorder(ink, true)
-	update, updateWidth := promptBorder(ink, false)
-	if host == update || hostWidth <= updateWidth {
-		t.Fatal("主机密钥提示和更新提示边框没有分开")
+	host := promptBorder(ink, true)
+	update := promptBorder(ink, false)
+	if host == update {
+		t.Fatal("主机密钥提示和更新提示应该用不同背景")
 	}
 	if host != ink.danger {
-		t.Fatal("主机密钥提示没有使用危险色边框")
+		t.Fatal("主机密钥提示应该用危险色")
 	}
 }
 
 func TestPaneBorderMarksFocus(t *testing.T) {
 	ink := colors(true)
-	color, width := paneBorder(ink, true)
-	if color != ink.accent || width < 2 {
-		t.Fatalf("焦点边框 = %v 宽度 %v", color, width)
+	color := paneBorder(ink, true)
+	if color != ink.selected {
+		t.Fatal("焦点分栏应该用选中背景")
 	}
-	idle, idleWidth := paneBorder(ink, false)
-	if idle == ink.accent || idleWidth >= 2 {
-		t.Fatal("非焦点分栏不该使用强调边框")
+	idle := paneBorder(ink, false)
+	if idle != ink.chrome {
+		t.Fatal("非焦点分栏应该用栏面色")
 	}
 }

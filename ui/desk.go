@@ -266,7 +266,7 @@ func NewConfig(m *Model) app.Config {
 				})
 			})
 			frame.Row().Fill().Children(func() {
-				frame.Column().Width(m.split.Pos).FillHeight().Background(ink.chrome).Border(1, ink.line).Pad(16).Gap(12).Children(func() {
+				frame.Column().Width(m.split.Pos).FillHeight().Background(ink.chrome).Pad(16).Gap(12).Children(func() {
 					visible := visibleHosts(m)
 					frame.Row().Items(flex.Center).Children(func() {
 						frame.Text("主机").FontSize(15).Bold()
@@ -286,8 +286,8 @@ func NewConfig(m *Model) app.Config {
 						for _, item := range visible {
 							i, host := item.index, item.host
 							selected := i == m.Selected
-							bg, border, borderWidth := hostCardStyle(ink, selected)
-							row := frame.Column().FillWidth().Pad(12).Gap(4).Radius(10).Border(borderWidth, border).Background(bg).HoverBackground(ink.elevated)
+							bg := hostCardStyle(ink, selected)
+							row := frame.Column().FillWidth().Pad(12).Gap(4).Radius(12).Background(bg).HoverBackground(ink.elevated)
 							row.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
 							if row.Children(func() {
 								frame.Row().Gap(8).Items(flex.Center).Children(func() {
@@ -336,7 +336,7 @@ func NewConfig(m *Model) app.Config {
 							}
 						}
 					})
-					frame.Column().FillWidth().Pad(12).Gap(8).Radius(12).Background(ink.elevated).Border(1, ink.line).Children(func() {
+					frame.Column().FillWidth().Pad(12).Gap(8).Radius(12).Background(ink.elevated).Children(func() {
 						frame.Text("连接").FontSize(13).Color(ink.muted)
 						host, hasHost := selectedHost(m)
 						if !hasHost {
@@ -395,7 +395,7 @@ func NewConfig(m *Model) app.Config {
 				})
 				frame.Splitter(splitID, &m.split).Mins(240, 420)
 				frame.Column().Grow(1).FillHeight().Background(ink.window).Children(func() {
-					frame.Row().FillWidth().Height(44).PadX(16).Gap(12).Items(flex.Center).Background(ink.chrome).Border(1, ink.line).Children(func() {
+					frame.Row().FillWidth().Height(44).PadX(16).Pad(12).Gap(12).Items(flex.Center).Background(ink.chrome).Children(func() {
 						view := 0
 						if m.showFiles {
 							view = 1
@@ -418,8 +418,7 @@ func NewConfig(m *Model) app.Config {
 						frame.Text(sessionHint(m)).Muted()
 					})
 					if prompt := updatePrompt(m); prompt != "" {
-						updateBorder, updateWidth := promptBorder(ink, false)
-						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Border(updateWidth, updateBorder).Children(func() {
+						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Children(func() {
 							frame.Text(prompt)
 							frame.Row().Gap(8).Children(func() {
 								if !m.updateBusy && frame.Button(updateYesID, "更新").Small().Clicked() {
@@ -432,8 +431,7 @@ func NewConfig(m *Model) app.Config {
 						})
 					}
 					if prompt := fingerprintPrompt(m); prompt != "" {
-						hostBorder, hostWidth := promptBorder(ink, true)
-						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Border(hostWidth, hostBorder).Children(func() {
+						frame.Column().FillWidth().Pad(16).Gap(8).Background(ink.elevated).Children(func() {
 							frame.Text(prompt)
 							frame.Row().Gap(8).Children(func() {
 								if frame.Button(acceptID, "接受").Small().Clicked() {
@@ -839,18 +837,18 @@ func themeLabel(dark bool) string {
 	return "亮色"
 }
 
-func promptBorder(ink skiffPalette, hostKey bool) (vivaui.Color, float32) {
+func promptBorder(ink skiffPalette, hostKey bool) vivaui.Color {
 	if hostKey {
-		return ink.danger, 2
+		return ink.danger
 	}
-	return ink.accent, 1
+	return ink.accent
 }
 
-func hostCardStyle(ink skiffPalette, selected bool) (vivaui.Color, vivaui.Color, float32) {
+func hostCardStyle(ink skiffPalette, selected bool) vivaui.Color {
 	if selected {
-		return ink.selected, ink.accent, 2
+		return ink.selected
 	}
-	return ink.window, ink.line, 1
+	return ink.window
 }
 
 func statusPillText(status string) string {

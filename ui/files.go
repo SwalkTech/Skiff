@@ -29,11 +29,11 @@ type fileResult struct {
 	err   string
 }
 
-func fileRowStyle(ink skiffPalette, selected bool) (vivaui.Color, vivaui.Color, float32) {
+func fileRowStyle(ink skiffPalette, selected bool) vivaui.Color {
 	if selected {
-		return ink.selected, ink.accent, 2
+		return ink.selected
 	}
-	return ink.window, ink.line, 1
+	return ink.window
 }
 
 func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
@@ -81,8 +81,8 @@ func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
 			if file.Dir {
 				label += "/"
 			}
-			bg, border, borderWidth := fileRowStyle(ink, selected)
-			row := frame.Row().FillWidth().Pad(8).Gap(12).Radius(8).Background(bg).Border(borderWidth, border).HoverBackground(ink.elevated)
+			bg := fileRowStyle(ink, selected)
+			row := frame.Row().FillWidth().Pad(8).Gap(12).Radius(12).Background(bg).HoverBackground(ink.elevated)
 			row.Hit(fileRows.At(i), file.Name)
 			if row.Children(func() {
 				name := frame.Text(label).Color(ink.ink)
