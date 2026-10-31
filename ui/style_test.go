@@ -54,6 +54,15 @@ func TestTerminalGridSubtractsPaddingOnce(t *testing.T) {
 	}
 }
 
+func TestLoadPanelHiddenUntilConnected(t *testing.T) {
+	if showLoadPanel(false) {
+		t.Fatal("未连接时仍显示负载卡")
+	}
+	if !showLoadPanel(true) {
+		t.Fatal("连接后没有显示负载")
+	}
+}
+
 func TestLoadDetailOmitsRepeatedCPU(t *testing.T) {
 	lines := loadDetailLines(serverLoad{CPU: 42, MemUsed: 1024, MemTotal: 2048})
 	for _, line := range lines {

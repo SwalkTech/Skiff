@@ -215,19 +215,22 @@ func parseLoad(text string, now time.Time, prevCPU cpuSample, prevNet netSample)
 	return load, nextCPU, nextNet, nil
 }
 
+func showLoadPanel(connected bool) bool {
+	return connected
+}
+
 func (m *Model) paintLoad(frame *flex.Frame, ink skiffPalette) {
-	frame.Column().FillWidth().Pad(12).Gap(6).Radius(12).Background(ink.elevated).Border(1, ink.line).Children(func() {
+	if m == nil || !showLoadPanel(m.connected) {
+		return
+	}
+	frame.Column().FillWidth().Gap(4).Children(func() {
 		frame.Row().Items(flex.Center).Children(func() {
 			frame.Text("负载").FontSize(13).Color(ink.muted)
 			frame.Spacer()
-			if m.connected && m.loadOK {
+			if m.loadOK {
 				frame.Text(fmt.Sprintf("CPU %.0f%%", m.load.CPU)).Color(ink.accent).Bold()
 			}
 		})
-		if !m.connected {
-			frame.Text("连接后显示这台服务器的负载").Color(ink.muted)
-			return
-		}
 		if !m.loadOK {
 			note := m.loadNote
 			if note == "" {
