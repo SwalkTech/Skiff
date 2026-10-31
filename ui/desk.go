@@ -23,6 +23,9 @@ const (
 	terminalFontSize float32 = 14
 	terminalPad      float32 = 16
 	titlebarHeight   float32 = 52
+	minWindowWidth   float32 = 800
+	minSidebarWidth  float32 = 240
+	minTerminalWidth float32 = 420
 )
 
 // skiffPalette 是窗口、侧栏和终端共用的一套颜色。
@@ -199,6 +202,7 @@ func NewConfig(m *Model) app.Config {
 	}
 	m.ensurePanes()
 	if m.split.Pos == 0 {
+		// 响应式初始化：通常侧栏宽度 300，小窗口可减小到 200
 		m.split.Pos = 300
 	}
 	m.password.Secure = true
@@ -309,13 +313,13 @@ func NewConfig(m *Model) app.Config {
 								frame.Row().Gap(8).Children(func() {
 									frame.Text(host.Address).Grow(1).Ellipsis().Muted()
 									if strings.TrimSpace(host.KeyFile) != "" {
-										frame.Text("密钥").Color(ink.accent)
+										frame.Text("密钥").Color(ink.accent).FontSize(12)
 									}
 									if m.hostHasPassword(host) {
-										frame.Text("已记住").Color(ink.accent)
+										frame.Text("已记住").Color(ink.accent).FontSize(12)
 									}
 									if live := m.sessionFor(host); live != nil && live.connected {
-										frame.Text("在线").Color(ink.success)
+										frame.Text("在线").Color(ink.success).FontSize(12)
 									}
 								})
 								frame.Row().Gap(8).Children(func() {
@@ -1024,7 +1028,11 @@ func (m *Model) fitGrid(canvas *vivaui.Canvas, width, height, cellW, cellH float
 	if cellH < 1 {
 		cellH = terminalFontSize * 1.18
 	}
+	// 响应式调整：小终端宽度下减少列数限制
 	cols, rows := terminalGridSize(width, height, cellW, cellH)
+	if width < minTerminalWidth && cols > 40 {
+		cols = 40
+	}
 	if m.stableCols > 0 && absInt(cols-m.stableCols) <= 1 && absInt(rows-m.stableRows) <= 1 {
 		return
 	}
