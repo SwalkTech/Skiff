@@ -126,11 +126,7 @@ func (m *Model) addPane() {
 	if len(m.panes) >= 3 {
 		return
 	}
-	id := 0
-	if s := m.focusedConn(); s != nil {
-		id = s.id
-	}
-	m.panes = append(m.panes, pane{sessionID: id})
+	m.panes = append(m.panes, pane{})
 	m.focus = len(m.panes) - 1
 	m.bindFocus()
 }
@@ -610,12 +606,7 @@ func (m *Model) paintPane(frame *flex.Frame, ink skiffPalette, index int, cellW,
 		if header.Children(func() {
 			labels, ids := m.sessionChoices()
 			if len(labels) > 0 {
-				current := 0
-				for n, id := range ids {
-					if id == m.panes[index].sessionID {
-						current = n
-					}
-				}
+				current := paneChoiceIndex(m.panes[index].sessionID, ids)
 				if n, ok := frame.Choice(panePick(index), labels, current).ChosenIndex(); ok && n < len(ids) && ids[n] != m.panes[index].sessionID {
 					m.panes[index].sessionID = ids[n]
 					if focused {
@@ -667,6 +658,15 @@ func (m *Model) paintPane(frame *flex.Frame, ink skiffPalette, index int, cellW,
 		m.bindFocus()
 	}
 	return closeRequested
+}
+
+func paneChoiceIndex(sessionID int, ids []int) int {
+	for n, id := range ids {
+		if id == sessionID {
+			return n
+		}
+	}
+	return -1
 }
 
 func panePick(index int) vivaui.Scope {

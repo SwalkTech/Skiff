@@ -243,7 +243,7 @@ func NewConfig(m *Model) app.Config {
 		cellW, cellH := canvas.MonoCellSize(terminalFontSize, vivaui.MonoSystem)
 		var terminal flex.Box
 		target := "未选择主机"
-		if host, ok := selectedHost(m); ok {
+		if host, ok := activeHost(m); ok {
 			target = host.User + "@" + host.Address + ":" + strconv.Itoa(host.Port)
 		}
 		frame.Column().Fill().Children(func() {
@@ -742,10 +742,17 @@ func windowTitle(m *Model) string {
 		return "Skiff"
 	}
 	title := "Skiff"
-	if host, ok := selectedHost(m); ok && strings.TrimSpace(host.Address) != "" {
+	if host, ok := activeHost(m); ok && strings.TrimSpace(host.Address) != "" {
 		title += " — " + strings.TrimSpace(host.Address)
 	}
 	return title + " — " + statusText(m.Status)
+}
+
+func activeHost(m *Model) (store.Host, bool) {
+	if s := m.focusedConn(); s != nil {
+		return s.host, true
+	}
+	return selectedHost(m)
 }
 
 func selectedHost(m *Model) (store.Host, bool) {

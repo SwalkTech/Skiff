@@ -85,6 +85,14 @@ func (m *Model) forgetPassword(host store.Host) {
 }
 
 func (m *Model) connectLabel() string {
+	if s := m.focusedConn(); s != nil {
+		switch {
+		case s.connected:
+			return "断开"
+		case s.dialing:
+			return "取消"
+		}
+	}
 	if host, ok := selectedHost(m); ok {
 		if s := m.sessionFor(host); s != nil {
 			switch {
@@ -106,12 +114,17 @@ func (m *Model) connectLabel() string {
 }
 
 func (m *Model) connectSelected() {
+	if s := m.focusedConn(); s != nil && (s.connected || s.dialing) {
+		m.disconnectConn(s)
+		return
+	}
 	host, ok := selectedHost(m)
 	if !ok {
 		m.Status = "请先选择一台主机"
 		return
 	}
 	if s := m.sessionFor(host); s != nil && (s.connected || s.dialing) {
+		m.showSession(s)
 		m.disconnectConn(s)
 		return
 	}
