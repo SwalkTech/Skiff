@@ -270,6 +270,21 @@ func (m *Model) acceptHostKey() {
 }
 
 func (m *Model) rejectHostKey() {
+	if s := m.promptingConn(); s != nil {
+		s.mu.Lock()
+		reply := s.keyReply
+		s.keyReply = nil
+		s.askFingerprint = ""
+		s.askAuthorized = ""
+		s.mu.Unlock()
+		s.Fingerprint = ""
+		s.secret = ""
+		s.dialing = false
+		s.Status = errHostKeyRejected.Error()
+		m.bindFocus()
+		sendReply(reply, errHostKeyRejected)
+		return
+	}
 	m.mu.Lock()
 	reply := m.keyReply
 	m.keyReply = nil
