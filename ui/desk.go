@@ -79,8 +79,9 @@ var (
 	page             = tree.Feature("desk")
 	hostListID       = tree.ID(page, "hosts")
 	hostRows         = tree.Sub(page, tree.Name("host-rows"))
+	editHosts        = tree.Sub(page, tree.Name("edit-host"))
+	deleteHosts      = tree.Sub(page, tree.Name("delete-host"))
 	addID            = tree.ID(page, "add")
-	editID           = tree.ID(page, "edit")
 	deleteID         = tree.ID(page, "delete")
 	connectID        = tree.ID(page, "connect")
 	saveID           = tree.ID(page, "save")
@@ -219,6 +220,7 @@ func NewConfig(m *Model) app.Config {
 	config := app.Config{
 		Tree:           &tree,
 		Title:          windowTitle(m),
+		Icon:           windowIcon(),
 		Width:          1080,
 		Height:         700,
 		WindowMode:     app.WindowCustomTitlebar,
@@ -271,9 +273,10 @@ func NewConfig(m *Model) app.Config {
 		}
 		frame.Column().Fill().Children(func() {
 			_, trailing := app.TitlebarInsets()
-			frame.Row().FillWidth().Height(titlebarHeight).PadX(16).PadSides(0, 16+trailing, 0, 16).Items(flex.Center).Background(ink.chrome).MovesWindow().Children(func() {
+			frame.Row().FillWidth().Height(titlebarHeight).PadX(16).PadSides(0, 16+trailing, 0, 16).Gap(gapSmall).Items(flex.Center).Background(ink.chrome).MovesWindow().Children(func() {
+				frame.Icon(skiffMark()).Width(18).Height(18)
 				frame.Text("Skiff").FontSize(18).Bold()
-				frame.Text(target).Muted()
+				frame.Text(target).Grow(1).MaxWidth(360).Ellipsis().Muted()
 				frame.Spacer()
 				if frame.Button(themeID, themeLabel(m.dark)).Ghost().Small().Clicked() {
 					m.dark = !m.dark
@@ -305,63 +308,65 @@ func NewConfig(m *Model) app.Config {
 							i, host := item.index, item.host
 							selected := i == m.Selected
 							bg := hostCardStyle(ink, selected)
-							row := frame.Column().FillWidth().Pad(gapStd).Gap(gapTight).Radius(radiusLarge).Background(bg).HoverBackground(ink.elevated)
-							row.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
-							if row.Children(func() {
-								frame.Row().Gap(gapSmall).Items(flex.Center).Children(func() {
-									if selected {
-										frame.Text("当前").Color(ink.accent).Bold()
+							row := frame.Column().FillWidth().Pad(gapStd).Gap(gapSmall).Radius(radiusLarge).Background(bg).HoverBackground(ink.elevated)
+							row.Children(func() {
+								summary := frame.Column().FillWidth().Gap(gapTight)
+								summary.Hit(hostRows.ID(vivaui.Index(i)), host.Address)
+								if summary.Children(func() {
+									frame.Row().Gap(gapSmall).Items(flex.Center).Children(func() {
+										if selected {
+											frame.Text("当前").Color(ink.accent).Bold()
+										}
+										user := frame.Text(host.User).Grow(1).MaxWidth(150).Ellipsis()
+										frame.Text(strconv.Itoa(host.Port)).Muted()
+										if selected {
+											user.Bold()
+										}
+									})
+									frame.Row().Gap(gapSmall).Items(flex.Center).Children(func() {
+										frame.Text(host.Address).Grow(1).MaxWidth(150).Ellipsis().Muted()
+										if strings.TrimSpace(host.KeyFile) != "" {
+											frame.Text("密钥").Color(ink.accent).FontSize(12)
+										}
+										if m.hostHasPassword(host) {
+											frame.Text("已记住").Color(ink.accent).FontSize(12)
+										}
+										if live := m.sessionFor(host); live != nil && live.connected {
+											frame.Text("在线").Color(ink.success).FontSize(12)
+										}
+									})
+								}).Clicked() {
+									if live := m.sessionFor(host); live != nil && (live.connected || live.dialing) {
+										m.Selected = i
+										m.changePassword = false
+										m.recallPassword(host)
+										m.assignFocused(live)
+										return
 									}
-									user := frame.Text(host.User)
-									frame.Spacer()
-									frame.Text(strconv.Itoa(host.Port)).Muted()
-									if selected {
-										user.Bold()
+									if selected && !m.dialing {
+										m.connectSelected()
+										return
 									}
-								})
+									m.Selected = i
+									m.changePassword = false
+									m.recallPassword(host)
+									if m.remembered {
+										m.Status = "可直接连接"
+									} else {
+										m.Status = "已选择 " + host.User + "@" + host.Address
+									}
+								}
 								frame.Row().Gap(gapSmall).Children(func() {
-									frame.Text(host.Address).Grow(1).Ellipsis().Muted()
-									if strings.TrimSpace(host.KeyFile) != "" {
-										frame.Text("密钥").Color(ink.accent).FontSize(12)
-									}
-									if m.hostHasPassword(host) {
-										frame.Text("已记住").Color(ink.accent).FontSize(12)
-									}
-									if live := m.sessionFor(host); live != nil && live.connected {
-										frame.Text("在线").Color(ink.success).FontSize(12)
-									}
-								})
-								frame.Row().Gap(gapSmall).Children(func() {
-									if frame.Button(editID, "编辑").Outline().Small().Clicked() {
+									if frame.Button(editHostID(i), "编辑").Outline().Small().Clicked() {
 										m.startEditHost(i)
 									}
 									frame.Spacer()
-									if frame.Button(deleteID, "删除").DestructiveOutline().Small().Clicked() {
+									if frame.Button(deleteHostID(i), "删除").DestructiveOutline().Small().Clicked() {
 										m.Selected = i
 										m.deleteSelected()
 									}
 								})
-							}).Clicked() {
-								if live := m.sessionFor(host); live != nil && (live.connected || live.dialing) {
-									m.Selected = i
-									m.changePassword = false
-									m.recallPassword(host)
-									m.assignFocused(live)
-									return
-								}
-								if selected && !m.dialing {
-									m.connectSelected()
-									return
-								}
-								m.Selected = i
-								m.changePassword = false
-								m.recallPassword(host)
-								if m.remembered {
-									m.Status = "可直接连接"
-								} else {
-									m.Status = "已选择 " + host.User + "@" + host.Address
-								}
-							}
+							})
 						}
 					})
 					frame.Column().FillWidth().Pad(gapStd).Gap(gapSmall).Radius(radiusLarge).Background(ink.elevated).Children(func() {
@@ -435,7 +440,7 @@ func NewConfig(m *Model) app.Config {
 				})
 				frame.Splitter(splitID, &m.split).Mins(240, 420)
 				frame.Column().Grow(1).FillHeight().Background(ink.window).Children(func() {
-					frame.Row().FillWidth().Height(44).PadX(16).Pad(gapStd).Gap(gapStd).Items(flex.Center).Background(ink.chrome).Children(func() {
+					frame.Row().FillWidth().Height(52).PadX(16).Gap(gapSmall).Items(flex.Center).Background(ink.chrome).Children(func() {
 						view := 0
 						if m.showFiles {
 							view = 1
@@ -455,7 +460,7 @@ func NewConfig(m *Model) app.Config {
 							m.addPane()
 						}
 						frame.Spacer()
-						frame.Text(sessionHint(m)).Muted()
+						frame.Text(sessionHint(m)).Grow(1).MaxWidth(280).Ellipsis().Muted()
 					})
 					if prompt := updatePrompt(m); prompt != "" {
 						frame.Column().FillWidth().Pad(gapLarge).Gap(gapSmall).Background(ink.elevated).Children(func() {

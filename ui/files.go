@@ -85,7 +85,7 @@ func (m *Model) paintFiles(frame *flex.Frame, ink skiffPalette) {
 			row := frame.Row().FillWidth().Pad(gapSmall).Gap(gapStd).Radius(radiusLarge).Background(bg).HoverBackground(ink.elevated)
 			row.Hit(fileRows.At(i), file.Name)
 			if row.Children(func() {
-				name := frame.Text(label).Color(ink.ink)
+				name := frame.Text(label).Grow(1).MaxWidth(240).Ellipsis().Color(ink.ink)
 				if selected || file.Dir {
 					name.Bold()
 				}
