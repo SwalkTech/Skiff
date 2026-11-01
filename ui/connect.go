@@ -593,20 +593,24 @@ func (m *Model) onKey(event vivaui.KeyEvent) vivaui.EventResult {
 		m.focus = idx
 		m.bindFocus()
 	}
-	if m.connected && (event.Target == terminalID || event.Target == paneTermID(m.focus)) && !event.Release {
+	if m.acceptsTerminal(event.Target) && !event.Release {
+		if result, ok := m.terminalChord(event); ok {
+			return result
+		}
 		if seq := keySequence(event); len(seq) > 0 {
+			cleared := m.dropSelection()
 			m.writeSession(seq)
-			return vivaui.EventResult{Handled: true}
+			return vivaui.EventResult{Handled: true, Repaint: cleared}
 		}
 	}
 	return m.split.Key(event)
 }
 
 func (m *Model) onShortcut(event vivaui.KeyEvent) vivaui.EventResult {
-	// 终端快捷键：Ctrl+C 中断
-	if m.connected && event.Modifiers&vivaui.ModifierControl != 0 && strings.EqualFold(event.Text, "c") {
-		m.writeSession([]byte{3})
-		return vivaui.EventResult{Handled: true}
+	if m.acceptsTerminal(event.Target) {
+		if result, ok := m.terminalChord(event); ok {
+			return result
+		}
 	}
 	// 终端正在使用时，控制键交给会话，避免误删主机或断开连接。
 	if !m.connected && event.Modifiers&vivaui.ModifierControl != 0 {
@@ -667,7 +671,8 @@ func (m *Model) onTerminalText(event app.TextEvent) (app.TextState, error) {
 	redraw := false
 	switch event.Kind {
 	case app.TextInsert, app.TextPaste:
-		redraw = m.noteLocalEcho(event.Text)
+		cleared := m.dropSelection()
+		redraw = m.noteLocalEcho(event.Text) || cleared
 		m.writeSession([]byte(event.Text))
 	case app.TextCommandEvent:
 		if event.Command == app.TextDeleteBackward {

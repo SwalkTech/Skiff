@@ -791,20 +791,26 @@ func (m *Model) paintTerminalLines(frame *flex.Frame, ink skiffPalette, lines []
 		if lineWidth < cellW {
 			lineWidth = cellW
 		}
+		selected := m.hasSel && grid == m.Grid
 		for y := 0; y <= last; y++ {
+			pieces := rowPieces(grid.LineRuns(y), y, selected, m.selFromX, m.selFromY, m.selToX, m.selToY)
 			frame.Row().Height(cellH).MaxWidth(lineWidth).Children(func() {
-				for _, run := range grid.LineRuns(y) {
-					text := frame.Text(run.Text).Mono().FontSize(terminalFontSize).Height(cellH)
-					if run.Bold {
+				for _, piece := range pieces {
+					text := frame.Text(piece.text).Mono().FontSize(terminalFontSize).Height(cellH)
+					if piece.bold {
 						text.Bold()
 					}
-					if run.FG.Set {
-						text.Color(vivaui.RGB(run.FG.R, run.FG.G, run.FG.B))
+					if piece.selected {
+						text.Color(vivaui.RGB(255, 255, 255)).Background(selectionColor(m.dark))
+						continue
+					}
+					if piece.fg.Set {
+						text.Color(vivaui.RGB(piece.fg.R, piece.fg.G, piece.fg.B))
 					} else {
 						text.Color(ink.ink)
 					}
-					if run.BG.Set {
-						text.Background(vivaui.RGB(run.BG.R, run.BG.G, run.BG.B))
+					if piece.bg.Set {
+						text.Background(vivaui.RGB(piece.bg.R, piece.bg.G, piece.bg.B))
 					}
 				}
 			})

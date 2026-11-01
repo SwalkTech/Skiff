@@ -201,6 +201,14 @@ type Model struct {
 	focus                 int
 	nextSession           int
 	paneBox               flex.Box
+	termArea              vivaui.Rect
+	termCellW             float32
+	termCellH             float32
+	selecting             bool
+	hasSel                bool
+	selFromX, selFromY    int
+	selToX, selToY        int
+	clipboard             func() (string, error)
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -246,6 +254,7 @@ func NewConfig(m *Model) app.Config {
 		OnScroll:    m.view.Wheel,
 		OnKey:       m.onKey,
 		OnShortcut:  m.onShortcut,
+		OnPointer:   m.onPointer,
 		OnWake:      m.wake,
 		OnClosed:    m.disconnectAll,
 		Invalidator: &m.invalidator,
@@ -519,6 +528,8 @@ func NewConfig(m *Model) app.Config {
 		}
 		area := terminal.Rect()
 		m.lastTerminalHeight = area.Height
+		m.termArea = area
+		m.termCellW, m.termCellH = cellW, cellH
 		m.fitGrid(canvas, area.Width, area.Height, cellW, cellH)
 		m.noteResize()
 	}
