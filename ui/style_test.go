@@ -116,9 +116,9 @@ func TestWindowIconUsesLogo(t *testing.T) {
 	if icon.Size != 256 || len(icon.RGBA) != 256*256*4 {
 		t.Fatalf("窗口图标 = %d，字节 %d", icon.Size, len(icon.RGBA))
 	}
-	mark := skiffMark()
-	if mark.ViewBox != 24 || len(mark.Commands) == 0 {
-		t.Fatal("标题栏标记没有画出来")
+	bitmap := logoBitmap()
+	if bitmap.Width != 256 || bitmap.Height != 256 || len(bitmap.Pix) != 256*256*4 {
+		t.Fatal("标题栏图标没有画出来")
 	}
 }
 

@@ -267,6 +267,7 @@ func NewConfig(m *Model) app.Config {
 		frame := m.view.Begin(canvas, theme, bounds)
 		cellW, cellH := canvas.MonoCellSize(terminalFontSize, vivaui.MonoSystem)
 		var terminal flex.Box
+		var logoBox flex.Box
 		target := "未选择主机"
 		if host, ok := activeHost(m); ok {
 			target = host.User + "@" + host.Address + ":" + strconv.Itoa(host.Port)
@@ -274,7 +275,7 @@ func NewConfig(m *Model) app.Config {
 		frame.Column().Fill().Children(func() {
 			_, trailing := app.TitlebarInsets()
 			frame.Row().FillWidth().Height(titlebarHeight).PadX(16).PadSides(0, 16+trailing, 0, 16).Gap(gapSmall).Items(flex.Center).Background(ink.chrome).MovesWindow().Children(func() {
-				frame.Icon(skiffMark()).Width(18).Height(18)
+				logoBox = frame.Slot().Width(28).Height(28)
 				frame.Text("Skiff").FontSize(18).Bold()
 				frame.Text(target).Grow(1).MaxWidth(360).Ellipsis().Muted()
 				frame.Spacer()
@@ -494,6 +495,9 @@ func NewConfig(m *Model) app.Config {
 			})
 		})
 		frame.End()
+		if rect := logoBox.Rect(); rect.Width > 1 {
+			canvas.DrawBitmap(logoBitmap(), rect)
+		}
 		area := terminal.Rect()
 		m.lastTerminalHeight = area.Height
 		m.fitGrid(canvas, area.Width, area.Height, cellW, cellH)
