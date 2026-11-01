@@ -1,4 +1,5 @@
 # Skiff
+<img width="1536" height="1024" alt="Skiff 是一艘只做 SSH 的小艇：一个开在原生窗口里的 SSH 客户端。 它记 (1)" src="https://github.com/user-attachments/assets/5fe58ff6-f6c2-4450-a062-d08aad7c58f9" />
 
 Skiff 是一艘只做 SSH 的小艇：一个开在原生窗口里的 SSH 客户端。
 
