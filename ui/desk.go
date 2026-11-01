@@ -369,10 +369,17 @@ func NewConfig(m *Model) app.Config {
 					frame.Column().FillWidth().Pad(gapStd).Gap(gapSmall).Radius(radiusLarge).Background(ink.elevated).Children(func() {
 						frame.Text("连接").FontSize(13).Color(ink.muted)
 						host, hasHost := selectedHost(m)
+						selectedLive := false
 						if !hasHost {
 							frame.Text("先选一台主机").Muted()
-						} else if strings.TrimSpace(host.KeyFile) != "" {
-							frame.Text(filepath.Base(host.KeyFile)).MaxWidth(220).Ellipsis().Muted()
+						} else {
+							frame.Text(host.User + " · " + host.Address).MaxWidth(220).Ellipsis().Muted()
+							if s := m.sessionFor(host); s != nil && (s.connected || s.dialing) {
+								selectedLive = true
+							}
+							if strings.TrimSpace(host.KeyFile) != "" {
+								frame.Text(filepath.Base(host.KeyFile)).MaxWidth(220).Ellipsis().Muted()
+							}
 						}
 						frame.Row().Gap(gapSmall).Children(func() {
 							if frame.Button(keyPickID, "密钥文件").Outline().Small().Clicked() {
@@ -407,8 +414,8 @@ func NewConfig(m *Model) app.Config {
 								}
 							})
 						}
-						if !m.connected {
-							keyChosen := hasHost && strings.TrimSpace(host.KeyFile) != ""
+						if hasHost && !selectedLive {
+							keyChosen := strings.TrimSpace(host.KeyFile) != ""
 							if keyChosen {
 								if frame.Field(&m.password, passwordID, "密钥口令", "未加密可留空").Submitted() {
 									m.connectSelected()
@@ -424,14 +431,12 @@ func NewConfig(m *Model) app.Config {
 								m.connectSelected()
 							}
 						}
-						frame.Row().Gap(gapSmall).Children(func() {
-							if frame.Button(connectID, m.connectLabel()).FillWidth().Clicked() {
-								m.connectSelected()
-							}
-							if frame.Button(deleteID, "删除").DestructiveOutline().Clicked() {
-								m.deleteSelected()
-							}
-						})
+						if frame.Button(connectID, m.connectLabel()).FillWidth().Clicked() {
+							m.connectSelected()
+						}
+						if frame.Button(deleteID, "删除").Ghost().Small().Clicked() {
+							m.deleteSelected()
+						}
 					})
 					m.paintLoad(frame, ink)
 				})

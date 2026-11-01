@@ -111,6 +111,22 @@ func (m *Model) openConn(host store.Host) *conn {
 	return s
 }
 
+func (m *Model) focusEmptyPane() bool {
+	m.ensurePanes()
+	for i, item := range m.panes {
+		if item.sessionID == 0 {
+			m.focus = i
+			m.bindFocus()
+			return true
+		}
+	}
+	if len(m.panes) >= 3 {
+		return false
+	}
+	m.addPane()
+	return true
+}
+
 func (m *Model) assignFocused(s *conn) {
 	m.ensurePanes()
 	if s == nil {

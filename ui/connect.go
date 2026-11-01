@@ -110,7 +110,11 @@ func (m *Model) forgetPassword(host store.Host) {
 }
 
 func (m *Model) connectLabel() string {
-	if s := m.focusedConn(); s != nil {
+	host, ok := selectedHost(m)
+	if !ok {
+		return "连接"
+	}
+	if s := m.sessionFor(host); s != nil {
 		switch {
 		case s.connected:
 			return "断开"
@@ -118,31 +122,10 @@ func (m *Model) connectLabel() string {
 			return "取消"
 		}
 	}
-	if host, ok := selectedHost(m); ok {
-		if s := m.sessionFor(host); s != nil {
-			switch {
-			case s.connected:
-				return "断开"
-			case s.dialing:
-				return "取消"
-			}
-		}
-	}
-	switch {
-	case m.connected:
-		return "断开"
-	case m.dialing:
-		return "取消"
-	default:
-		return "连接"
-	}
+	return "连接"
 }
 
 func (m *Model) connectSelected() {
-	if s := m.focusedConn(); s != nil && (s.connected || s.dialing) {
-		m.disconnectConn(s)
-		return
-	}
 	host, ok := selectedHost(m)
 	if !ok {
 		m.Status = "请先选择一台主机"
@@ -152,6 +135,12 @@ func (m *Model) connectSelected() {
 		m.showSession(s)
 		m.disconnectConn(s)
 		return
+	}
+	if focused := m.focusedConn(); focused != nil && (focused.connected || focused.dialing) {
+		if !m.focusEmptyPane() {
+			m.Status = "分栏都在使用，请先断开一台或关闭一栏"
+			return
+		}
 	}
 	keyFile := strings.TrimSpace(host.KeyFile)
 	password := ""

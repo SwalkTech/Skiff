@@ -47,10 +47,14 @@ func TestWindowTitleFollowsFocusedPane(t *testing.T) {
 		t.Fatalf("标题跟随了左侧列表而不是当前分栏: %q", title)
 	}
 	if model.connectLabel() != "连接" {
-		t.Fatalf("未连接分栏的按钮 = %q", model.connectLabel())
+		t.Fatalf("选中主机未连接时按钮 = %q", model.connectLabel())
 	}
 	model.sessions[0].connected = true
+	if model.connectLabel() != "连接" {
+		t.Fatalf("按钮跟着了当前分栏而不是选中主机: %q", model.connectLabel())
+	}
+	model.Selected = 1
 	if model.connectLabel() != "断开" {
-		t.Fatalf("当前分栏已连接时按钮 = %q", model.connectLabel())
+		t.Fatalf("选中已连接主机时按钮 = %q", model.connectLabel())
 	}
 }
