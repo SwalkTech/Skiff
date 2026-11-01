@@ -344,10 +344,6 @@ func NewConfig(m *Model) app.Config {
 										m.assignFocused(live)
 										return
 									}
-									if selected && !m.dialing {
-										m.connectSelected()
-										return
-									}
 									m.Selected = i
 									m.changePassword = false
 									m.recallPassword(host)

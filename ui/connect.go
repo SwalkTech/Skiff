@@ -619,8 +619,8 @@ func (m *Model) onShortcut(event vivaui.KeyEvent) vivaui.EventResult {
 		m.writeSession([]byte{3})
 		return vivaui.EventResult{Handled: true}
 	}
-	// UI 快捷键：需要未连接或焦点在主机列表
-	if event.Modifiers&vivaui.ModifierControl != 0 {
+	// 终端正在使用时，控制键交给会话，避免误删主机或断开连接。
+	if !m.connected && event.Modifiers&vivaui.ModifierControl != 0 {
 		switch strings.ToUpper(event.Text) {
 		case "N":
 			// Ctrl+N：新增主机
