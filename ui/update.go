@@ -47,9 +47,13 @@ func (m *Model) applyUpdateNotice() {
 	version := m.pendingUpdateVersion
 	rawURL := m.pendingUpdateURL
 	note := m.pendingUpdateNote
+	got := m.pendingUpdateGot
+	total := m.pendingUpdateTotal
+	progress := m.pendingUpdateProgress
 	m.pendingUpdateVersion = ""
 	m.pendingUpdateURL = ""
 	m.pendingUpdateNote = ""
+	m.pendingUpdateProgress = false
 	m.mu.Unlock()
 	if version != "" {
 		m.updateVersion = version
@@ -59,6 +63,10 @@ func (m *Model) applyUpdateNotice() {
 		m.updateBusy = false
 		m.updateNote = note
 	}
+	if progress {
+		m.updateGot = got
+		m.updateTotal = total
+	}
 }
 
 func (m *Model) beginUpdate() {
@@ -66,10 +74,12 @@ func (m *Model) beginUpdate() {
 		return
 	}
 	m.updateBusy = true
+	m.updateGot = 0
+	m.updateTotal = 0
 	m.updateNote = "正在下载更新"
 	rawURL := m.updateURL
 	go func() {
-		path, err := downloadUpdate(context.Background(), rawURL)
+		path, err := downloadUpdate(context.Background(), rawURL, m.publishUpdateProgress)
 		if err != nil {
 			m.publishUpdateNote("更新下载失败")
 			return
@@ -87,6 +97,40 @@ func (m *Model) publishUpdateNote(note string) {
 	m.pendingUpdateNote = note
 	m.mu.Unlock()
 	m.wakeUp()
+}
+
+func (m *Model) publishUpdateProgress(got, total int64) {
+	m.mu.Lock()
+	m.pendingUpdateGot = got
+	m.pendingUpdateTotal = total
+	m.pendingUpdateProgress = true
+	m.mu.Unlock()
+	m.wakeUp()
+}
+
+func updateProgressText(got, total int64) string {
+	if total > 0 {
+		pct := got * 100 / total
+		if pct > 100 {
+			pct = 100
+		}
+		return fmt.Sprintf("已下载 %s / %s（%d%%）", formatBytes(uint64(got)), formatBytes(uint64(total)), pct)
+	}
+	if got > 0 {
+		return "已下载 " + formatBytes(uint64(got))
+	}
+	return "正在准备下载"
+}
+
+func updateFraction(got, total int64) float32 {
+	if total <= 0 || got <= 0 {
+		return 0
+	}
+	fraction := float32(got) / float32(total)
+	if fraction > 1 {
+		return 1
+	}
+	return fraction
 }
 
 func fetchLatest(ctx context.Context) (string, string, error) {
@@ -178,7 +222,7 @@ func allowedSetupURL(raw string) bool {
 	return strings.HasPrefix(parsed.Path, "/SwalkTech/Skiff/releases/download/") && strings.HasSuffix(parsed.Path, "/"+updateAsset)
 }
 
-func downloadUpdate(ctx context.Context, rawURL string) (string, error) {
+func downloadUpdate(ctx context.Context, rawURL string, progress func(got, total int64)) (string, error) {
 	if !allowedSetupURL(rawURL) {
 		return "", errors.New("更新地址不被允许")
 	}
@@ -203,10 +247,31 @@ func downloadUpdate(ctx context.Context, rawURL string) (string, error) {
 		return "", err
 	}
 	defer file.Close()
-	n, err := io.Copy(file, io.LimitReader(resp.Body, 64<<20))
-	if err != nil {
-		return "", err
+	total := resp.ContentLength
+	var got int64
+	buf := make([]byte, 32<<10)
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, err := file.Write(buf[:n]); err != nil {
+				return "", err
+			}
+			got += int64(n)
+			if got > 64<<20 {
+				return "", errors.New("更新文件过大")
+			}
+			if progress != nil {
+				progress(got, total)
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return "", readErr
+		}
 	}
+	n := got
 	if n < 2 {
 		return "", errors.New("更新文件不完整")
 	}

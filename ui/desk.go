@@ -171,31 +171,36 @@ type Model struct {
 	stableCols      int
 	stableRows      int
 
-	mu                   sync.Mutex
-	writeMu              sync.Mutex
-	client               *session.Client
-	cancel               context.CancelFunc
-	generation           int
-	keyReply             chan error
-	pending              []byte
-	askFingerprint       string
-	askAuthorized        string
-	dialErr              string
-	dialOK               bool
-	readErr              error
-	updateVersion        string
-	updateURL            string
-	updateNote           string
-	updateBusy           bool
-	updateDismissed      bool
-	pendingUpdateVersion string
-	pendingUpdateURL     string
-	pendingUpdateNote    string
-	sessions             []*conn
-	panes                []pane
-	focus                int
-	nextSession          int
-	paneBox              flex.Box
+	mu                    sync.Mutex
+	writeMu               sync.Mutex
+	client                *session.Client
+	cancel                context.CancelFunc
+	generation            int
+	keyReply              chan error
+	pending               []byte
+	askFingerprint        string
+	askAuthorized         string
+	dialErr               string
+	dialOK                bool
+	readErr               error
+	updateVersion         string
+	updateURL             string
+	updateNote            string
+	updateBusy            bool
+	updateDismissed       bool
+	updateGot             int64
+	updateTotal           int64
+	pendingUpdateVersion  string
+	pendingUpdateURL      string
+	pendingUpdateNote     string
+	pendingUpdateGot      int64
+	pendingUpdateTotal    int64
+	pendingUpdateProgress bool
+	sessions              []*conn
+	panes                 []pane
+	focus                 int
+	nextSession           int
+	paneBox               flex.Box
 
 	paintedTerminal    string
 	terminalPaints     int
@@ -465,13 +470,26 @@ func NewConfig(m *Model) app.Config {
 						frame.Text(sessionHint(m)).Grow(1).MaxWidth(280).Ellipsis().Muted()
 					})
 					if prompt := updatePrompt(m); prompt != "" {
-						frame.Column().FillWidth().Pad(gapLarge).Gap(gapSmall).Background(ink.elevated).Children(func() {
+						cardW := float32(340)
+						x := (size.Width - cardW) / 2
+						y := size.Height * 0.28
+						frame.Popup().At(x, y).Width(cardW).Pad(gapLarge).Gap(gapSmall).Radius(radiusLarge).Background(ink.elevated).Children(func() {
+							frame.Text("软件更新").Bold()
+							frame.Text("当前 " + Version + "  →  " + m.updateVersion).Muted()
 							frame.Text(prompt)
+							if m.updateBusy {
+								fraction := updateFraction(m.updateGot, m.updateTotal)
+								bar := frame.Progress(fraction).FillWidth().Height(8)
+								if m.updateTotal <= 0 {
+									bar.Indeterminate()
+								}
+								frame.Text(updateProgressText(m.updateGot, m.updateTotal)).Muted()
+							}
 							frame.Row().Gap(gapSmall).Children(func() {
 								if !m.updateBusy && frame.Button(updateYesID, "更新").Small().Clicked() {
 									m.beginUpdate()
 								}
-								if frame.Button(updateNoID, "稍后").Outline().Small().Clicked() {
+								if !m.updateBusy && frame.Button(updateNoID, "稍后").Outline().Small().Clicked() {
 									m.updateDismissed = true
 								}
 							})

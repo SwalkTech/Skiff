@@ -1,6 +1,9 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNewerVersion(t *testing.T) {
 	if !newerVersion("0.2.0", "0.2.1") || !newerVersion("v0.2.0", "v0.3.0") {
@@ -33,6 +36,18 @@ func TestParseLatestRelease(t *testing.T) {
 	version, rawURL, err := parseLatestRelease(body)
 	if err != nil || version != "0.2.1" || !allowedSetupURL(rawURL) {
 		t.Fatalf("version=%s url=%s err=%v", version, rawURL, err)
+	}
+}
+
+func TestUpdateProgressText(t *testing.T) {
+	if got := updateProgressText(0, 0); got != "正在准备下载" {
+		t.Fatalf("准备文案 = %q", got)
+	}
+	if got := updateFraction(50, 100); got != 0.5 {
+		t.Fatalf("进度 = %v", got)
+	}
+	if !strings.Contains(updateProgressText(512, 1024), "50%") {
+		t.Fatal("进度没有百分比")
 	}
 }
 
